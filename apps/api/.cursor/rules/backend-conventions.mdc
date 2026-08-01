@@ -1,0 +1,129 @@
+---
+description: Regras de arquitetura e convenções do backend (NestJS). Seguir sempre ao criar ou editar código no backend.
+globs: backend/**/*
+---
+
+# Backend EZCRM — Arquitetura e Convenções
+
+## Regra principal: separação por responsabilidade
+
+O backend segue **camadas bem definidas**. Cada camada tem uma única responsabilidade. Não misturar: não colocar lógica de negócio em controllers, não colocar queries SQL/TypeORM em services (usar repositórios), não colocar regras de negócio em entidades.
+
+## Camadas (ordem de dependência)
+
+1. **Entities** (`src/entities/`) — Modelo de dados (TypeORM). Apenas definição de colunas, relações e índices. **Sem lógica de negócio.**
+2. **Repositories** (`src/repositories/`) — Acesso a dados. Métodos que usam TypeORM (find, save, update, delete, queries). **Sem regras de negócio;** apenas CRUD e consultas.
+3. **Services** (`src/modules/<nome>/<nome>.service.ts`) — Lógica de negócio. Orquestram repositórios, validam regras, lançam exceções (NotFoundException, ConflictException, BadRequestException), usam LoggerService, RequestContextService (CLS). **Não acessam TypeORM/Repository diretamente** além do que já está nos repositórios. Cache de dados fica no repositório; o service apenas repassa skipCache e pode expor invalidate*Cache.
+4. **Controllers** (`src/modules/<nome>/<nome>.controller.ts`) — HTTP: rotas, body/query/param, DTOs, chamada ao service. **Sem lógica de negócio;** apenas delegar ao service e retornar resposta.
+5. **DTOs** (`src/modules/<nome>/dto/`) — Objetos de entrada/saída. Validação com **class-validator** (IsString, IsEmail, IsOptional, MinLength, IsUUID, etc.) e documentação com **@ApiProperty** / **@ApiPropertyOptional** (Swagger).
+
+## O que cada camada NÃO deve fazer
+
+| Camada     | Não fazer                                                                                     |
+| ---------- | --------------------------------------------------------------------------------------------- |
+| Controller | Lógica de negócio, acesso a repositório, queries, validações além do DTO                      |
+| Service    | Queries TypeORM brutas (usar repositório), decorators HTTP (Param, Body)                      |
+| Repository | Regras de negócio, validações de negócio, exceções de domínio (apenas retornar null ou dados) |
+| Entity     | Lógica, métodos de negócio, acesso a outros serviços                                          |
+| DTO        | Lógica; apenas tipos e validação de formato                                                   |
+
+## Estrutura de um módulo de domínio
+
+Cada recurso (ex.: customers, users) fica em `src/modules/<nome>/`:
+
+- `<nome>.module.ts` — Declara controller, service, importa o que for necessário (repositórios via DatabaseModule ou módulo próprio).
+- `<nome>.controller.ts` — Rotas (Get, Post, Put, Delete), UseGuards (JwtAuthWithContextGuard, RolesGuard), @Roles, @ApiTags, @ApiOperation, @ApiResponse, body/query/param com DTOs. Para recursos com cache: em GET de listagem e GET por id, ler bypass de cache (query `?skipCache=1` ou `?skipCache=true`, ou header `X-Skip-Cache: true`) e repassar ao service. Opcional: rota de manutenção `POST /<recurso>/cache/invalidate` (ex.: `POST /customers/cache/invalidate`), restrita a ADMIN, com query opcional `?organizationId=...`; sem query usa a organização do contexto.
+- `<nome>.service.ts` — Injetar repositórios e serviços comuns (LoggerService, RequestContextService); implementar create, find, update, delete e regras. **Não** implementar cache de dados no service: cache fica no repositório; o service apenas repassa `skipCache` ao repositório e pode expor método de invalidação (ex.: `invalidate*Cache`) para manutenção.
+- `dto/` — create-_.dto.ts, update-_.dto.ts, list-\*.dto.ts (paginação, filtros). Sempre class-validator + ApiProperty.
+
+**Repositórios** ficam em `src/repositories/` (um por entidade principal, ex.: customer.repository.ts).
+
+### Quando estender BaseRepository e quando não
+
+- **Estender BaseRepository&lt;T&gt;:** quando a entidade tem `organization_id`, CRUD padrão e listagem paginada (`findWithFilters`). Construtor recebe apenas `Repository&lt;T&gt;`. Se o recurso tiver cache, injetar também `CacheService` e `LoggerService` no repositório (ex.: `constructor(repo, cacheService, logger) { super(repo); }`).
+- **Não estender:** (a) quando o repositório precisa de mais dependências no construtor (ex.: UserRepository com CacheService + LoggerService e lógica de cache específica); (b) entidade sem `organization_id` (ex.: Plan, catálogo global); (c) tabela de junção ou API muito diferente (ex.: OrganizationUser). Nesses casos implementar a classe sem extend e os métodos necessários.
+- **Referência:** repositório com cache e BaseRepository — `customer.repository.ts`; repositório com cache sem BaseRepository — `user.repository.ts`.
+
+### Cache (camada de dados)
+
+O **cache de dados fica no repositório**, não no service. O service não faz `get`/`set`/`delete` de cache; apenas repassa opções (ex.: `skipCache`) e pode expor endpoint de invalidação.
+
+- **Onde:** repositórios que acessam entidades consultadas com frequência (ex.: customers, users). Injetar `CacheService` e `LoggerService`; pode estender `BaseRepository` e adicionar cache nos métodos de leitura.
+- **Chaves:** usar `CacheService.generateKey(entity, id, organizationId)` para item (`entity:{orgId}:{id}`); `CacheService.generateListKey(entity, organizationId, filters)` para lista — normalizar filtros (ex.: ordenar chaves) antes de gerar a chave para evitar duplicatas.
+- **TTL:** configurável por env (ex.: `CUSTOMER_ITEM_CACHE_TTL`, `CUSTOMER_LIST_CACHE_TTL`); padrões sugeridos: item 300s, lista 120s.
+- **Leituras:** em `findById`, `findWithFilters` (e opcionalmente `findByEmail`) aceitar `options?: { skipCache?: boolean }`. Se `skipCache === true`, não ler nem gravar cache; senão, tentar cache antes do banco e gravar após leitura.
+- **Invalidação:** em **toda** escrita (create, update, delete, bulk): remover chave(s) do item afetado e invalidar listas da organização (prefixo `entity:list:{organizationId}`) via `CacheService.deleteByPrefix`. Oferecer método opcional `invalidate*Cache(organizationId?: string)` para manutenção ou pós-import: com `organizationId` invalida só essa org; sem, invalida todo o cache do recurso.
+- **Referência de implementação:** `customer.repository.ts` (cache completo: item, lista, findByEmail, invalidação, skipCache, invalidateCustomerCache).
+
+**Entidades** ficam em `src/entities/`. Export central em `src/entities/index.ts`.
+
+## Autenticação e contexto
+
+- **Auth:** Login em `auth/auth.controller.ts` (POST /auth/login); verificação em GET /auth/check. JWT no header `Authorization: Bearer <token>`.
+- **Guards:** `JwtAuthWithContextGuard` — valida token e preenche contexto (userId, companyId, userRole). `RolesGuard` — verifica role com decorator @Roles(UserRole.ADMIN, ...).
+- **Contexto (CLS):** RequestContextService (common/services/cls.service.ts) fornece getUserId(), getCompanyId(), getUserRole() dentro da requisição. Services usam para multi-tenancy (filtrar por company_id) e auditoria.
+- **Perfil do usuário:** PUT /users/profile — qualquer usuário autenticado; DTO UpdateUserProfileDto (name, newPassword, preferences). Não usar controller de users para alterar outro usuário sem role adequada; usar @PreventSelfEdit quando aplicável.
+
+## DTOs e validação
+
+- Usar **class-validator**: @IsString(), @IsEmail(), @MinLength(), @IsOptional(), @IsUUID(), @IsArray(), @ValidateNested(), etc.
+- Documentar com **Swagger**: @ApiProperty e @ApiPropertyOptional em cada campo.
+- Listagem com filtros/paginação: DTO com campos opcionais (search, page, limit, orderBy, etc.) e usar interfaces como PaginatedResponse (common/interfaces/).
+
+## Frontend — payloads
+
+Os DTOs em `dto/` (create-*.dto.ts, update-*.dto.ts) são a **referência** para os arquivos **`*-payload.ts`** do frontend (`frontend/src/modules/<nome>/<nome>-payload.ts`). O frontend deve manter os mesmos nomes de campos e regras de opcionalidade dos DTOs, usando funções como `toCreate*Payload` e `toUpdate*Payload` que fazem pick apenas das chaves permitidas. Isso evita erro de validação (`forbidNonWhitelisted` do ValidationPipe) e mantém o contrato entre backend e frontend alinhado.
+
+## Nomenclatura e comentários
+
+- **Controllers:** comentário JSDoc em cada rota (ex.: "POST /customers — Create a new customer"). @ApiOperation e @ApiResponse para Swagger.
+- **Services:** comentário no topo da classe e em métodos públicos (ex.: "Create a new customer; checks email uniqueness").
+- **Repositories:** métodos claros (findById, findByEmail, create, update, delete). Não expor o Repository do TypeORM diretamente; encapsular em métodos com nomes de domínio.
+- **Arquivos:** kebab-case (create-customer.dto.ts, customer.repository.ts).
+
+## Novos recursos (CRUD)
+
+Ao criar um novo recurso (ex.: "products"):
+
+1. **Entity** em `src/entities/product.entity.ts` — colunas, relações, índices; export em `entities/index.ts`.
+2. **Repository** em `src/repositories/product.repository.ts` — estender BaseRepository<Product> ou implementar métodos (create, findById, findByCompany, update, delete). Registrar no DatabaseModule (TypeORM).
+3. **Module** em `src/modules/products/` — products.module.ts, products.controller.ts, products.service.ts, dto/ (create-product.dto.ts, update-product.dto.ts, list-products.dto.ts).
+4. **Controller:** rotas REST, UseGuards(JwtAuthWithContextGuard, RolesGuard), @Roles, DTOs nos body/query/param.
+5. **Service:** injetar ProductRepository, RequestContextService, LoggerService. Obter company_id do contexto; não receber company_id no body. Regras de negócio aqui; exceções NestJS (NotFoundException, ConflictException, BadRequestException). **Não** implementar cache de dados no service — cache fica no repositório quando aplicável; o service repassa `skipCache` aos métodos do repositório e pode expor `invalidate*Cache(organizationId?)` para o endpoint de manutenção.
+6. **Registrar** o módulo em `app.module.ts`.
+
+**Referência de implementação (módulo completo com cache):** `src/modules/customers/` (controller, service, repository com cache, skipCache, invalidate) e `src/repositories/customer.repository.ts`. O projeto é um **modelo** para implementar outros projetos; novos recursos devem seguir os mesmos padrões (incluindo cache no repositório, skipCache e invalidação quando aplicável).
+
+### Ordem de implementação e escopo
+
+- Pode ser pedido **apenas backend**, **apenas frontend**, ou **backend e frontend** (juntos ou um depois do outro).
+- **Apenas backend:** implementar entity → repository → module (controller, service, dto) → registrar em AppModule.
+- **Apenas frontend:** seguir frontend-components.mdc; tipos e *-payload.ts devem ser alinhados aos DTOs já existentes no backend (consultar `backend/src/modules/<nome>/dto/`).
+- **Backend + frontend:** considerar **ambas** as regras (backend-conventions.mdc e frontend-components.mdc). Ordem recomendada: implementar primeiro o **backend por completo** (entity, repository, module, DTOs), depois o **frontend** (types, api, hook, components, page), para que os DTOs já estejam definidos e o *-payload.ts do frontend possa ser alinhado sem retrabalho.
+
+## Common
+
+- **common/decorators/** — @Roles, @CurrentUser, @CurrentCompany, @PreventSelfEdit.
+- **common/filters/** — GlobalExceptionFilter (tratamento global de exceções).
+- **common/interceptors/** — Logging, CORS, Audit, UserContext (CLS).
+- **common/services/** — LoggerService, **CacheService**, RequestContextService (CLS), UserDataService (perfil, cache de usuário).
+  - **CacheService:** usado por repositórios que implementam cache. Métodos: `get<T>(key)`, `set(key, value, ttlSeconds)`, `delete(key)`, `deleteByPrefix(prefix)` (invalidação de listas e manutenção), `generateKey(entity, id, organizationId?)`, `generateListKey(entity, organizationId, filters?)`. Redis quando disponível; fallback em memória.
+- **common/interfaces/** — PaginatedResponse, UserPreferences, etc.
+- **common/enums/** — UserRole, etc.
+
+Não criar lógica de negócio em common; apenas utilitários, decorators, filtros e serviços transversais.
+
+## Resumo para IA / desenvolvedor
+
+- **Controller:** só rotas, DTOs e chamada ao service. Para recursos com cache: ler skipCache (query/header) e repassar ao service; opcionalmente rota `POST /<recurso>/cache/invalidate` (ADMIN). Sem lógica de negócio.
+- **Service:** lógica de negócio; usa repositórios e RequestContextService; lança exceções NestJS. Não faz get/set/delete de cache; repassa skipCache ao repositório e pode expor invalidate*Cache.
+- **Repository:** apenas acesso a dados (TypeORM); sem regras de negócio. Quando o recurso tiver cache, a lógica de cache fica no repositório (chaves, TTL, invalidação em toda escrita, skipCache, invalidate*Cache opcional).
+- **Entity:** apenas modelo; sem lógica.
+- **DTO:** class-validator + ApiProperty; sem lógica. Os DTOs de create/update são a referência para os *-payload.ts do frontend (ver seção "Frontend — payloads").
+- **Novos recursos:** entity → repository → module (controller + service + dto) → registrar em AppModule. Se o recurso for frequentemente consultado, implementar cache no repositório seguindo customer.repository.ts. Se a tarefa incluir frontend, considerar frontend-components.mdc e implementar backend primeiro.
+- **Escopo:** tarefa pode ser só backend, só frontend ou ambos; quando ambos, usar as duas regras e ordem backend → frontend.
+- **Multi-tenancy:** sempre obter company_id do RequestContextService nos services; filtrar por company_id em repositórios.
+- **Nomenclatura:** kebab-case em arquivos; comentários e Swagger nas rotas e DTOs.
+- **Projeto como modelo:** este código é referência para outros projetos; manter padrões (camadas, cache no repositório, skipCache, invalidação) em novas implementações.
+
+Para mais detalhes: **backend/AGENTS.md** e **backend/src/README.md**.

@@ -1,0 +1,54 @@
+# Infraestrutura de desenvolvimento: PostgreSQL e Redis.
+#
+# `name` é FIXO de propósito. Sem ele, o Compose deriva o nome do projeto do
+# nome do DIRETÓRIO, e o nome do projeto prefixa o nome dos volumes — então
+# mover esta pasta (era `services/`, virou `backend/docker/`) trocaria o volume
+# de `services_pg_data` para `docker_pg_data`, e o banco apareceria VAZIO com os
+# dados antigos órfãos num volume que ninguém mais referencia. Com `name`
+# declarado, o volume é `${COMPOSE_PROJECT_NAME:-app}_pg_data` onde quer que
+# esta pasta esteja.
+#
+# Projeto-filho (whitelabel): troque `COMPOSE_PROJECT_NAME` no seu `.env` (ou
+# o fallback `app` abaixo) pelo nome do seu produto — nada aqui deve ficar
+# preso ao nome do template.
+name: ${COMPOSE_PROJECT_NAME:-app}
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-app}_postgres
+    restart: always
+    environment:
+      # ATENÇÃO: estas três variáveis só têm efeito na PRIMEIRA inicialização do
+      # volume. Num volume que já existe, mudá-las não faz nada — o papel e o
+      # banco continuam com o nome antigo. Para valer, ou o volume é novo, ou se
+      # renomeia por SQL (`ALTER ROLE ... RENAME TO ...`).
+      POSTGRES_USER: ${DB_USERNAME:-app}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-app}
+      POSTGRES_DB: ${DB_DATABASE:-app}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-app} -d ${DB_DATABASE:-app}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-app}_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # TODO: MinIO para anexos, quando a feature de arquivos sair do frontend-only.
+
+volumes:
+  pg_data:

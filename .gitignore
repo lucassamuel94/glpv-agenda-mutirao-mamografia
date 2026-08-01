@@ -1,0 +1,14 @@
+node_modules/
+.pnpm-store/
+.turbo/
+dist/
+build/
+.next/
+out/
+coverage/
+*.log
+.env
+.env.local
+.claude/settings.local.json
+.DS_Store
+.impeccable/

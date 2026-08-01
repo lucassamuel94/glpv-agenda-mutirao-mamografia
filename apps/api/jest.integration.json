@@ -1,0 +1,25 @@
+{
+  "moduleFileExtensions": [
+    "js",
+    "json",
+    "ts"
+  ],
+  "rootDir": ".",
+  "roots": [
+    "<rootDir>/test/integration"
+  ],
+  "testRegex": ".*\\.integration\\.spec\\.ts$",
+  "moduleNameMapper": {
+    "^@/(.*)$": "<rootDir>/src/$1"
+  },
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "testEnvironment": "node",
+  "setupFiles": [
+    "dotenv/config"
+  ],
+  "//maxWorkers": "Serializado DE PROPÓSITO. Todos os specs de integração compartilham um único banco de dev, e cada um cria/apaga uma organização escolhida à mão por UUID. Em paralelo, o afterAll de um spec apagava a org de outro no meio da execução — a suíte falhava em ~1 de cada 3 rodadas com violação de chave estrangeira, e nunca com --runInBand. A convenção de UUIDs exclusivos resolve o sintoma mas depende de disciplina humana a cada spec novo; serializar remove a classe de erro. O custo é baixo: a suíte inteira roda em ~7s.",
+  "maxWorkers": 1,
+  "//setupFiles": "O fuso NAO e configuravel aqui: process.env.TZ dentro de setupFiles NAO tem efeito (o Node fixa o fuso antes). Quem garante UTC e o prefixo TZ=UTC no script do package.json — ver o bloco no topo de src/main.ts."
+}

@@ -1,0 +1,10 @@
+packages:
+  - "apps/*"
+allowBuilds:
+  '@nestjs/core': true
+  '@scarf/scarf': false
+  bcrypt: true
+  core-js-pure: false
+  esbuild: false
+  sharp: true
+  unrs-resolver: true

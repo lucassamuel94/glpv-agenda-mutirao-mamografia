@@ -1,0 +1,73 @@
+{
+  "$schema": "./design-system.schema.json",
+  "description": "Configuração centralizada do Design System — define quais componentes devem ter stories no Storybook e serem expostos via MCP.",
+  "syncPaths": [
+    { "name": "UI Base", "path": "src/components/ui" },
+    { "name": "Components", "path": "src/components", "depth": "flat" },
+    { "name": "Form Fields", "path": "src/components/Form/Fields" },
+    { "name": "Hooks", "path": "src/hooks" },
+    { "name": "Lib", "path": "src/lib" },
+    { "name": "Stories", "path": "src/stories" },
+    { "name": "Globals CSS", "path": "src/app/globals.css" }
+  ],
+  "layers": [
+    {
+      "name": "UI Base",
+      "description": "Componentes base shadcn/ui (Radix + Tailwind). Somente leitura — não alterar.",
+      "components": "src/components/ui",
+      "stories": "src/stories/ui",
+      "storyTitle": "UI Base",
+      "ignore": []
+    },
+    {
+      "name": "Components",
+      "description": "Wrappers do app — encapsulam os componentes de ui/ com padrão visual e comportamento do sistema.",
+      "components": "src/components",
+      "stories": "src/stories/components",
+      "storyTitle": "Components",
+      "depth": "flat",
+      "ignore": [
+        "AccessDenied.tsx",
+        "AppBrand.tsx",
+        "DateRangeFilter.tsx",
+        "EmojiPicker.tsx",
+        "ErrorBoundary.tsx",
+        "ForceChangePasswordScreen.tsx",
+        "HelpWidget.tsx",
+        "ImageCropDialog.tsx",
+        "Layout.tsx",
+        "LayoutSlots.tsx",
+        "PublicLayout.tsx",
+        "RequireAuth.tsx",
+        "Sidebar.tsx",
+        "SWRProvider.tsx"
+      ]
+    },
+    {
+      "name": "Form Fields",
+      "description": "Campos de formulário integrados com react-hook-form e Zod.",
+      "components": "src/components/Form/Fields",
+      "stories": "src/stories/form",
+      "storyTitle": "Form Fields",
+      "ignore": [
+        "_shared",
+        "index.ts",
+        "HiddenUuid.tsx"
+      ]
+    },
+    {
+      "name": "Design Tokens",
+      "description": "Tokens visuais (cores, tipografia, spacing) extraídos de globals.css.",
+      "stories": "src/stories/tokens",
+      "storyTitle": "Design Tokens",
+      "tokensOnly": true
+    },
+    {
+      "name": "Patterns",
+      "description": "Padrões de composição — como combinar componentes para construir páginas e módulos CRUD (listagem, formulários, filtros, tabelas).",
+      "stories": "src/stories/patterns",
+      "storyTitle": "Patterns",
+      "tokensOnly": true
+    }
+  ]
+}

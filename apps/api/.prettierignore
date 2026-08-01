@@ -1,0 +1,15 @@
+# Build outputs
+dist/
+build/
+*.js.map
+
+# Dependencies
+node_modules/
+
+# Generated files
+coverage/
+*.log
+
+# Config files
+package-lock.json
+yarn.lock

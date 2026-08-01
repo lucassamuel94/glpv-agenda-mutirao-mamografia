@@ -1,0 +1,7 @@
+{
+  "name": "ez CRM",
+  "description": "A comprehensive CRM solution featuring Kanban pipelines, customer 360-degree views, and AI-driven insights.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "name": "ez-starter-kit",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "predev": "lsof -ti :3000 -ti :3001 | xargs kill -9 2>/dev/null || true",
+    "dev": "turbo run dev --ui=tui",
+    "create:project": "node scripts/create-project.mjs",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "check": "turbo run check",
+    "clean:superpowers": "bash scripts/clean-superpowers-tasks.sh"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0"
+  },
+  "packageManager": "pnpm@11.14.0",
+  "engines": {
+    "node": ">=20"
+  }
+}

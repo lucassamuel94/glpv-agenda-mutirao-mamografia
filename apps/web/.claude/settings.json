@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev)",
+      "Bash(npm run build)",
+      "Bash(npm run lint)",
+      "Bash(npm run storybook)",
+      "Bash(npm run build-storybook)",
+      "Bash(npm run check:stories)",
+      "Bash(npm run build:mcp-data)",
+      "Bash(npm run build:mcp-screenshots)",
+      "Bash(npm run ds:*)",
+      "Bash(npx tsx scripts/*)",
+      "Bash(npx next:*)",
+      "Bash(npx storybook:*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "\"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/block-forbidden-imports.sh", "timeout": 10 },
+          { "type": "command", "command": "\"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/warn-ui-edits.sh", "timeout": 10 }
+        ]
+      }
+    ]
+  }
+}

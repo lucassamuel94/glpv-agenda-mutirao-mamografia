@@ -1,0 +1,160 @@
+---
+description: Regras de componentes e UI do frontend EZCRM. Seguir sempre ao criar ou editar código no frontend.
+globs: frontend/**/*
+---
+
+# Frontend — Componentes e Padronização
+
+## Regra principal: não alterar `src/components/ui/`
+
+A pasta **`frontend/src/components/ui/`** contém os componentes base do **shadcn/ui** (Radix + Tailwind). Esses arquivos **não devem ser alterados**. Qualquer customização de estilo, comportamento ou API deve ser feita em componentes de nível superior ("componentes pai").
+
+## Hierarquia de componentes
+
+1. **Base (somente leitura):** `src/components/ui/*`
+   - Exemplos: `button.tsx`, `input.tsx`, `dialog.tsx`, `label.tsx`, `select.tsx`, etc.
+   - Não editar. Não estilizar diretamente nas views/módulos.
+
+2. **Componentes pai (usar sempre):** `src/components/*` e `src/components/Form/*`
+   - São os que **encapsulam** os de `ui/` e aplicam o padrão visual e de comportamento do sistema.
+   - **Sempre** usar estes nas views, módulos e novos recursos.
+
+## Onde importar cada coisa
+
+| Necessidade                            | Importar de                                                          | Nunca usar diretamente                                                |
+| -------------------------------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Botão                                  | `@/components/Button`                                                | `@/components/ui/button`                                              |
+| Modal / diálogo                        | `@/components/Dialog`                                                | `@/components/ui/dialog`                                              |
+| Alerta (info, success, warning, error) | `@/components/Alert`                                                 | —                                                                     |
+| Confirmação com input                  | `@/components/InputDialog`                                           | —                                                                     |
+| Card                                   | `@/components/Card`                                                  | `@/components/ui/card`                                                |
+| Formulário (wrapper + react-hook-form) | `@/components/Form`                                                  | `@/components/ui/form`                                                |
+| Campos de formulário                   | `@/components/Form/Fields` ou `@/components/Form/Fields/Input`, etc. | `@/components/ui/input`, `@/components/ui/select`, etc.               |
+| Paginação                              | `@/components/Pagination`                                            | —                                                                     |
+| Busca (input + botão)                  | `@/components/InputSearch`                                           | —                                                                     |
+| Layout (sidebar, título, actions)      | `@/components/Layout`                                                | —                                                                     |
+| Lista vazia                            | `@/modules/common/empty-state`                            | —                                                                     |
+| Loading (skeleton de página/tabela)    | `@/modules/common/skeleton` (ex.: `SkeletonFullPage`)      | —                                                                     |
+| **Tabela de listagem**                 | `@/components/DataTable`                                            | `@/components/ui/table` (usar apenas via DataTable)                  |
+| Mensagem de erro (estado vazio)        | `@/modules/common/error-message`                         | —                                                                     |
+| Tooltip                                | `@/components/Tooltip`                                               | `@/components/ui/tooltip` (exceto se o Tooltip pai usar internamente) |
+| Sidebar                                | `@/components/Sidebar`                                               | —                                                                     |
+
+Campos disponíveis em **Form/Fields**: `Input`, `TextArea`, `Select`, `Checkbox`, `Switch`, `DatePicker`, `TimePicker`, `RadioGroup`, `Combobox`, `ComboboxMultiple`, `NumberInput`, `MaskedInput`, `HiddenUuid`, `TimeZone`, `Days`.  
+Sempre usar dentro de um `<Form>` (react-hook-form) para validação e estado centralizado.
+
+## Dados e API — hooks como única camada
+
+- **Regra:** Views e componentes de módulo (`modules/<nome>/*`) **nunca** importam de `@/lib/api/*`. Apenas **hooks** importam os serviços de API (ex.: `customersApi` em `hooks/use-customers.ts`).
+- **Padrão por recurso:** Um hook principal (ex.: `useCustomers`) que combina:
+  - **Listagem:** uso de `useGenericData` (paginação, filtros, ordenação, cache SWR).
+  - **Actions:** funções de mutação (create, update, delete, bulk*) e hook de item único (ex.: `useCustomer(id)`), com `mutate()` do SWR para invalidar cache após cada mutação.
+- **Referência de implementação:** `frontend/src/hooks/use-customers.ts` e `frontend/src/hooks/use-generic.ts`. Serviço de API em `frontend/src/lib/api/customers.ts` — usado **somente** pelo hook.
+
+### useGenericData — contrato e uso
+
+- **Config:** `fetcher(params: string)` (recebe query string), `cacheKeyPrefix`, `defaultSortBy` / `defaultSortOrder`, `initialPage` / `initialLimit`, `enabled`, `initialFilters`, `immutableFilters`, `hiddenFilterKeys`, `processResponse` (opcional).
+- **Retorno:** `data`, `pagination`, `isLoading`, `error`, `filters`, `sorts`, `visibleFilters`, `applyFilters`, `applySort`, `clearFilters`, `applyParams`, `activeFiltersCount`, `hasActiveSorts`, `goToPage`, `setPageLimit`.
+- Cache SWR com chave `${cacheKeyPrefix}-${queryString}`; opções de revalidação já definidas em `use-generic.ts`.
+- Para novo recurso: criar um `use*List(config?)` que chama `useGenericData<T>({ fetcher: (params) => xxxApi.list(params), cacheKeyPrefix: API_CONFIG.CACHE.KEYS.XXX, ... })` e registrar a chave em `frontend/src/lib/api/config.ts` em `CACHE.KEYS`.
+
+## Tipos e payloads
+
+- **Tipos de domínio:** Pasta **`src/types/`**. Um arquivo por entidade (ex.: `types/customer.ts`) com interfaces (ex.: `Customer`, `ListCustomersResponse`, `ListCustomersFilters`). Views e hooks importam de `@/types/<entidade>` — nunca usar a API como fonte de tipos para a UI.
+- **Payloads (*-payload.ts):** Arquivos **`*-payload.ts`** dentro do módulo (ex.: `modules/customers/customer-payload.ts`). Função: alinhar payloads de create/update aos **DTOs do backend** (evitar campos não permitidos e erro de `forbidNonWhitelisted` do ValidationPipe).
+  - Conteúdo típico: constantes `ALLOWED_CREATE_KEYS` e `ALLOWED_UPDATE_KEYS`, tipos `Create*Payload` e `Update*Payload`, funções `toCreate*Payload(data, overrides?)` e `toUpdate*Payload(data)` usando pick apenas nas chaves permitidas.
+  - **Backend:** DTOs em `backend/src/modules/<nome>/dto/` (create-*.dto.ts, update-*.dto.ts, list-*.dto.ts). Os DTOs são a referência para os *-payload.ts do frontend (ver regras em backend-conventions).
+
+## Formulários
+
+- Usar o componente **`Form`** de `@/components/Form` (ou caminho equivalente no projeto).
+- Usar **apenas** os campos exportados de **`@/components/Form/Fields`** (ex.: `Input`, `Select`, `TextArea`, `DatePicker`).
+- Não usar `<input>`, `<select>` ou componentes de `ui/` soltos em formulários; eles não ficam integrados ao Form e quebram a padronização.
+- Validação: preferir schemas Zod e `validation`/`required` nos Fields; manter schemas em arquivos `*-validation.ts` por módulo (ex.: `customer-validation.ts`).
+
+## Alertas, modais e confirmações
+
+- **Alertas simples (mensagem + OK):** usar `@/components/Alert` com `type`: `info` | `success` | `warning` | `error`.
+- **Modal genérico (título + conteúdo + footer):** usar `@/components/Dialog`.
+- **Confirmação com um campo de texto (ex.: nome para confirmar):** usar `@/components/InputDialog`.
+- Para confirmação "Sim/Não" sem input, usar `Dialog` com botões no `footer`.
+- Não criar novos modais ou alertas ad hoc; reutilizar os componentes acima.
+
+## Referência visual e de uso
+
+- **Style Guide:** rota `/style-guide` (ou view `StyleGuide.tsx`). Contém cores, tipografia, botões, cards, inputs, estados.
+- **Form Guide:** rota `/form-guide` (ou view `FormGuide.tsx`). Contém exemplos de Form e de cada Field.
+- Se um componente ou padrão **não existir** no Style Guide ou Form Guide, ele deve ser **criado como componente pai** (novo arquivo em `components/` ou `Form/Fields/`), nunca alterando arquivos em `ui/`.
+- Novos módulos devem seguir os mesmos padrões de layout, cores e componentes já exibidos nesses guias.
+
+## Tabelas de listagem
+
+- **Componente obrigatório:** usar **`DataTable`** de `@/components/DataTable` para todas as tabelas de listagem (listagens de clientes, equipe, etc.). O DataTable encapsula `@/components/ui/table` e aplica o padrão visual único do sistema (container com borda, header com fundo secundário, células com padding consistente, hover nas linhas).
+- **API do DataTable:** composição por subcomponentes — `DataTable.Root`, `DataTable.Header`, `DataTable.HeaderRow`, `DataTable.HeaderCell` (com opcionais `sortable`, `sortKey`, `currentSort`, `onSort`), `DataTable.Body`, `DataTable.Row` (com opcional `selected`), `DataTable.Cell` (com opcional `align`), `DataTable.SkeletonRow` (para estado de loading). Não montar tabelas de listagem com `ui/table` diretamente; sempre usar DataTable para manter a mesma formatação visual.
+- **Referência de uso:** `modules/customers/customer-table.tsx` (tabela completa com ordenação, seleção e ações) e `modules/team/team-table.tsx` (tabela simples). Novas `*-table.tsx` devem importar e usar apenas `@/components/DataTable`.
+
+## Novos módulos
+
+**Módulo de referência:** `modules/customers/` — seguir a mesma estrutura e padrões.
+
+Ao criar um novo módulo CRUD, descrever **apenas** a funcionalidade e particularidades (quais filtros, quais ações em massa, quais campos do formulário). A IA deve seguir automaticamente os padrões abaixo, sem precisar especificar detalhes de apresentação, validação ou nomenclatura.
+
+### Ordem de implementação e dependência do backend
+
+- Pode ser pedido **apenas backend**, **apenas frontend**, ou **backend e frontend** (juntos ou um depois do outro).
+- **Apenas frontend:** seguir este arquivo; tipos e *-payload.ts devem ser alinhados aos DTOs já existentes no backend (consultar `backend/src/modules/<nome>/dto/` ou backend-conventions.mdc). Se a API ainda não existir, definir tipos e payload conforme contrato esperado do backend.
+- **Backend + frontend:** considerar **ambas** as regras (backend-conventions.mdc e este arquivo). Ordem recomendada: implementar primeiro o **backend por completo**, depois o **frontend** (types, api, hook, components, page).
+
+### Estrutura de arquivos
+
+Em `src/modules/<nome>/`:
+
+- `*-dialog.tsx` — modal criar/editar; usa Form + Fields; no submit monta payload com `toCreate*Payload` / `toUpdate*Payload` e chama `createAction` / `updateAction` do hook (nunca chama a API diretamente).
+- `*-form.tsx` — formulário reutilizável com campos de `Form/Fields`.
+- `*-table.tsx` — tabela de listagem; **sempre** usar `@/components/DataTable` (Root, Header, HeaderRow, HeaderCell, Body, Row, Cell, SkeletonRow). Recebe dados e callbacks (onEdit, onDelete, etc.) da view; a view obtém dados e actions do hook unificado. Referência: `customer-table.tsx` e `team-table.tsx`.
+- `*-validation.ts` — schemas Zod; usar nos Fields e no Form.
+- `*-payload.ts` — alinhado aos DTOs do backend; funções `toCreate*Payload` e `toUpdate*Payload`.
+- `index.ts` — re-export dos componentes e tipos do módulo.
+
+### Camada de dados
+
+- Hook em `hooks/use-<recurso>.ts`: useGenericData (listagem) + use*Actions (create, update, delete, bulk*, useItem). API em `lib/api/<recurso>.ts` — **sem** acesso direto à API nas views nem nos componentes do módulo.
+- A API do backend suporta bypass de cache em GET (lista e por id) via query `?skipCache=1` ou header `X-Skip-Cache: true`; usar quando precisar de dados sempre frescos (ex.: após mutação ou botão "Atualizar").
+- Tipos em `types/<entidade>.ts`; payload em `modules/<nome>/<nome>-payload.ts` alinhado aos DTOs do backend.
+- Registrar `CACHE.KEYS.<RECURSO>` em `lib/api/config.ts` para o cache SWR.
+
+### Página de listagem
+
+- **Layout** (`@/components/Layout`): sempre com `title`, `actions` (opcional, botões no header), `skeleton` (ReactNode exibido quando `isLoading`), `isLoading`. Opcionais: `onBack`, `full`, `stickyFriendly`.
+- **Loading:** enquanto `isLoading` do hook for true, exibir `skeleton` no Layout (ex.: `SkeletonFullPage` de `@/modules/common/skeleton`).
+- **InputSearch** (`@/components/InputSearch`): busca; valor controlado e `applyFilters({ search: value })` (ou equivalente) no hook.
+- **EmptyState** (`@/modules/common/empty-state`): quando `data.length === 0` e não loading. Props: `title`, `description`, `icon`, `variant`, `action` (opcional), `compact`.
+- **Pagination** (`@/components/Pagination`): `currentPage`, `totalPages`, `onPageChange` — valores de `pagination` e `goToPage` do hook.
+- Dados e ações (create, update, delete, bulk*) vêm sempre do hook unificado (ex.: `useCustomers()`).
+
+### Componentes e nomenclatura
+
+- Usar apenas componentes pai: `Button`, `Dialog`, `Form`, `Form/Fields/*`, `Card`, `Alert`, `InputDialog`, `Pagination`, `Layout`, `DataTable`, `EmptyState`, `SkeletonFullPage`, `InputSearch`, `ErrorMessage` (`@/modules/common/error-message`).
+- Confirmações: "Sim/Não" com `Dialog` + footer; confirmação com input (ex.: nome) com `InputDialog`. Validação: schemas Zod em `*-validation.ts`.
+- **Naming:** kebab-case para arquivos (ex.: `customer-dialog.tsx`, `customer-form.tsx`, `customer-validation.ts`, `customer-payload.ts`); PascalCase para componentes. Cores e layout: seguir `/style-guide` e o restante do app; não introduzir novos padrões visuais.
+
+## Resumo para IA / desenvolvedor
+
+- **Nunca** editar ou estilizar diretamente arquivos em `frontend/src/components/ui/`.
+- **Nunca** importar API (`@/lib/api/*`) em views nem em `modules/*`; apenas hooks acessam a API.
+- **Sempre** usar os componentes de `@/components/` (Button, Dialog, Alert, Card, Form, Layout, **DataTable**, etc.) e `@/components/Form/Fields` para campos. **Tabelas de listagem:** sempre `DataTable`; nunca montar tabelas com `ui/table` diretamente. Tipos de domínio: `@/types/<entidade>`; nunca usar a API como fonte de tipos.
+- **Formulários:** sempre `Form` + Fields; payload com `toCreate*Payload` / `toUpdate*Payload` de `*-payload.ts` alinhado aos DTOs do backend.
+- **Alertas/modais:** Alert, Dialog, InputDialog; não criar novos padrões. Confirmações "Sim/Não" com Dialog + footer; com input usar InputDialog.
+- **Referência:** Style Guide e Form Guide; módulo de referência `modules/customers/`. Novos módulos: mesma estrutura (hooks + useGenericData + *-payload.ts), mesmos componentes, mesma convenção de naming; descrever apenas funcionalidade e particularidades.
+
+## Exemplos de prompt (desenvolvimento com IA)
+
+Use estes exemplos para pedir novos módulos ou alterações; a IA deve aplicar as regras deste arquivo e, quando aplicável, backend-conventions.mdc.
+
+| Pedido | Escopo | O que fazer |
+|--------|--------|-------------|
+| "Criar módulo de ofertas (deals) no backend e no frontend" | Backend + frontend | Backend primeiro: entity, repository, module, DTOs. Depois frontend: types, api, hook, modules/deals, page. Considerar ambos os .mdc. |
+| "Criar apenas o backend do módulo de ofertas (deals)" | Só backend | Seguir backend-conventions.mdc: entity → repository → module (controller, service, dto) → AppModule. |
+| "Criar apenas o frontend do módulo de ofertas (deals); o backend já existe" | Só frontend | Seguir este arquivo: types/deal.ts, lib/api/deals.ts, hooks/use-deals.ts, modules/deals/*, view e rota. Alinhar deal-payload.ts aos DTOs em backend/src/modules/deals/dto/. |
+| "Adicionar filtro por status na listagem de clientes" | Frontend (e backend se precisar) | Incluir status no list DTO e no backend se necessário; no frontend, applyFilters/initialFilters no useCustomers e UI de filtro. |
+| "Implementar primeiro o backend de produtos, depois o frontend" | Backend depois frontend | Fase 1: backend-conventions (entity, repository, module, DTOs). Fase 2: frontend-components (types, api, hook, module, page). |

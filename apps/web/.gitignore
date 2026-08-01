@@ -1,0 +1,58 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+.next/
+.next-demo/
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+*storybook.log
+
+# Storybook
+storybook-static/
+
+# MCP generated data (rebuild with npm run build:mcp-data)
+mcp-server/data/
+
+# Playwright
+playwright-report/
+test-results/
+
+# Test
+coverage/
+
+# Artefato de execução do sync-check (não é documentação)
+sync-report.json
+
+# Log de bloqueios dos hooks Claude (runtime)
+.claude/hooks/.log
+
+# ─── Ambiente ─────────────────────────────────────────────────────────────────
+# Regra EXPLÍCITA, não confie no `*.local` acima: sem estas linhas, um `.env`
+# ou `.env.production` com segredo seria commitado sem aviso (o `.env.local`
+# só estava protegido por acidente, pelo glob de logs).
+.env
+.env.*
+!.env.example
+
+# Cache incremental do tsc — artefato de build, muda a cada `tsc`
+tsconfig.tsbuildinfo

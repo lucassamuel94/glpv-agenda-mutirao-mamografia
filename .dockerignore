@@ -1,0 +1,17 @@
+**/node_modules
+**/dist
+**/build
+**/.next
+**/coverage
+**/*.log
+.DS_Store
+.git
+.gitignore
+**/.env
+**/.env.local
+apps/web
+apps/web-demo
+.turbo
+.impeccable
+.superpowers
+docs

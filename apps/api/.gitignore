@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Build
+dist/
+build/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+
+# Log de bloqueios dos hooks Claude (runtime)
+.claude/hooks/.log
+
+# Uploads (user-generated)
+uploads/*
+!uploads/.gitkeep
+
+# OS
+.DS_Store
+
+# Editor
+.idea/
+*.sw?
+
+# Test
+coverage/
+
+# Misc
+*.tsbuildinfo

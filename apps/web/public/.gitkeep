@@ -1,0 +1,10 @@
+# Mantém `public/` versionada mesmo vazia.
+#
+# O `.storybook/main.ts` declara `staticDirs: ["../public"]`, e o Storybook 10
+# aborta o boot com `Failed to load static files, no such directory: ./public`
+# se o diretório não existir. Como git não versiona diretório vazio, sem este
+# arquivo a pasta desaparece no clone e o `npm run storybook` quebra na
+# primeira execução de quem clona o repo.
+#
+# Assets estáticos da app (logo, favicon, imagens) vão aqui e ficam servidos
+# na raiz (`/logo.png`), tanto no `next dev` quanto no Storybook.

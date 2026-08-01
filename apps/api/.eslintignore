@@ -1,0 +1,22 @@
+# Build outputs
+dist/
+build/
+*.js.map
+
+# Dependencies
+node_modules/
+
+# Config files
+*.config.js
+.eslintrc.js
+
+# Generated files
+coverage/
+*.log
+
+# Backup and reference
+_REFERENCE_EZCALL/
+**/_OLD_*/
+
+# Scripts (opcional - pode remover se quiser lintar scripts)
+scripts/
