@@ -65,5 +65,9 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // `icon.svg`: favicon real do projeto (convenção App Router, ver
+  // CLAUDE.md §2.3) — sem excluir aqui, todo primeiro load sem sessão batia
+  // no gate, ganhava um 307 pra `/login` (HTML) no lugar do SVG, e o
+  // browser não conseguia renderizar o favicon.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg).*)"],
 };
