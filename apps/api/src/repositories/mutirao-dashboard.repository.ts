@@ -21,6 +21,7 @@ export class MutiraoDashboardRepository {
        LEFT JOIN slots s ON s.clinic_id = c.id
        LEFT JOIN appointments a ON a.slot_id = s.id
        WHERE c.organization_id = $1
+         AND c.active = true
        GROUP BY c.id, c.name, c.capacity
        ORDER BY c.name ASC`,
       [organizationId]

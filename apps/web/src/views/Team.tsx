@@ -7,7 +7,7 @@ import { ErrorMessage } from "@/modules/common/error-message";
 import { SkeletonFullPage } from "@/modules/common/skeleton";
 import Pagination from "@/components/Pagination";
 import { Button } from "@/components/Button";
-import { Users, UserPlus, Trash2, UserMinus, UserCheck } from "lucide-react";
+import { UserPlus, Trash2, UserMinus, UserCheck } from "lucide-react";
 import { useTeam } from "@/hooks/use-team";
 import {
   InviteUserDialog,
@@ -319,8 +319,9 @@ export default function TeamPage() {
           </div>
           {items.length === 0 ? (
             <EmptyState
-              icon={Users}
-              title="Nenhum membro encontrado"
+              kind="users"
+              mode={activeFiltersCount > 0 ? "no-results" : "no-data"}
+              title={activeFiltersCount > 0 ? "Nenhum membro encontrado" : "Nenhum membro cadastrado"}
               description={
                 activeFiltersCount > 0
                   ? "Nenhum resultado com os filtros aplicados. Tente ajustar a busca ou os filtros."
@@ -328,13 +329,12 @@ export default function TeamPage() {
               }
               action={
                 activeFiltersCount > 0
-                  ? undefined
+                  ? { label: "Limpar filtros", onClick: clearFilters }
                   : {
                       label: "Convidar usuário",
                       onClick: () => setInviteOpen(true),
                     }
               }
-              animate={activeFiltersCount === 0}
               className="rounded-none border-0 bg-transparent shadow-none"
             />
           ) : (

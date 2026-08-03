@@ -4,6 +4,7 @@ import { AlertTriangle, Sparkles } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { ClinicBalance, Slot, SlotPeriod } from "@/lib/api/scheduling";
+import { EmptyState } from "@/modules/common/empty-state";
 
 /** Hora de parede do `slot_at` (RN-60): fatia o texto, nunca constrói `Date`. */
 function timeOf(slotAt: string): string {
@@ -78,9 +79,14 @@ export function DaySlotsPanel({
             ))}
           </div>
         ) : free.length === 0 ? (
-          <p className="animate-empty-state-enter py-4 text-center text-sm text-muted-foreground">
-            Nenhuma vaga livre neste dia. Escolha outro dia no calendário.
-          </p>
+          <EmptyState
+            kind="agenda"
+            mode="no-availability"
+            compact
+            title="Nenhuma vaga livre neste dia"
+            description="Escolha outro dia no calendário."
+            className="border-0 bg-transparent px-0 shadow-none"
+          />
         ) : (
           <>
             {recommendedId && hasRecommendedFree && (

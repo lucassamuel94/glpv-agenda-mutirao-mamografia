@@ -274,7 +274,7 @@ const Login = () => {
         <div className="relative flex w-full flex-col p-8 sm:p-12 md:w-1/2">
           <button
             type="button"
-            onClick={(e) => toggleTheme({ x: e.clientX, y: e.clientY })}
+            onClick={() => toggleTheme()}
             aria-label={
               displayedTheme === "dark"
                 ? "Ativar tema claro"

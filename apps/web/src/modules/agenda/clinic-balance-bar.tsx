@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip } from "@/components";
 import { cn } from "@/lib/utils";
 import type { ClinicBalance } from "@/lib/api/scheduling";
+import { EmptyState } from "@/modules/common/empty-state";
 
 /**
  * Barra de equilíbrio por clínica.
@@ -38,14 +39,14 @@ export function ClinicBalanceBar({
 
   if (clinics.length === 0) {
     return (
-      <Card className="shadow-none animate-empty-state-enter">
-        <CardContent className="py-4">
-          <p className="text-sm text-muted-foreground">
-            Nenhuma clínica ativa. Cadastre as clínicas e carregue a grade para ver o
-            equilíbrio.
-          </p>
-        </CardContent>
-      </Card>
+      <EmptyState
+        kind="clinics"
+        mode="no-availability"
+        compact
+        title="Nenhuma clínica ativa"
+        description="Cadastre as clínicas e carregue a grade para ver o equilíbrio."
+        className="shadow-none"
+      />
     );
   }
 

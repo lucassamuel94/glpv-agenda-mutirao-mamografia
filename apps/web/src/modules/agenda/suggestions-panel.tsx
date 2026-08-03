@@ -4,6 +4,7 @@ import { CalendarClock, Scale, Zap } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { SlotPeriod, SlotSuggestion, SuggestionReason } from "@/lib/api/scheduling";
+import { EmptyState } from "@/modules/common/empty-state";
 
 const PERIOD_OPTIONS: Array<{ value: SlotPeriod | undefined; label: string }> = [
   { value: undefined, label: "Qualquer turno" },
@@ -99,9 +100,14 @@ export function SuggestionsPanel({
             ))}
           </div>
         ) : suggestions.length === 0 ? (
-          <p className="animate-empty-state-enter py-2 text-center text-xs text-muted-foreground">
-            Nenhuma vaga livre na janela selecionada.
-          </p>
+          <EmptyState
+            kind="agenda"
+            mode="no-availability"
+            compact
+            title="Nenhuma vaga livre"
+            description="Não há sugestões na janela selecionada."
+            className="border-0 bg-transparent px-0 shadow-none"
+          />
         ) : (
           <ul className="space-y-2">
             {suggestions.map((suggestion) => {

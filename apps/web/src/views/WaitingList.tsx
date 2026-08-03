@@ -9,6 +9,7 @@ import { useWaitingList } from "@/hooks/use-waiting-list";
 import { formatDateOnlyPtBR, formatDateTimeOnlyPtBR } from "@/lib/formatters";
 import { toast } from "@/lib/toast";
 import { AddWaitingListDialog } from "@/modules/waiting-list/add-waiting-list-dialog";
+import { EmptyState } from "@/modules/common/empty-state";
 
 function Content() {
   const { data, isLoading, markContactedAction, removeAction } = useWaitingList();
@@ -51,7 +52,15 @@ function Content() {
           {isLoading ? (
             <p className="text-sm text-muted-foreground">Carregando…</p>
           ) : items.length === 0 ? (
-            <p className="animate-empty-state-enter text-sm text-muted-foreground">Lista de espera vazia.</p>
+            <EmptyState
+              kind="waiting-list"
+              mode="no-data"
+              compact
+              title="Lista de espera vazia"
+              description="Adicione uma paciente para acompanhar a próxima oportunidade."
+              action={{ label: "Adicionar", onClick: () => setDialogOpen(true) }}
+              className="border-0 bg-transparent shadow-none"
+            />
           ) : (
             <table className="w-full text-sm">
               <thead>

@@ -11,6 +11,7 @@ import { formatDateTimeOnlyPtBR } from "@/lib/formatters";
 import type { Patient } from "@/lib/api/patients";
 import type { Appointment } from "@/lib/api/scheduling";
 import type { CancellationReason } from "@/lib/api/appointments";
+import { EmptyState } from "@/modules/common/empty-state";
 
 const STATUS_LABEL: Record<Appointment["status"], string> = {
   CONFIRMADO: "Confirmado",
@@ -28,7 +29,7 @@ function Content() {
       <PageHeader title="Pacientes" description="Busca, histórico e cancelamento de agendamentos." />
       <TableSurface>
         <div className="border-b border-border p-4">
-          <PatientSearch onSelect={setPatient} />
+          <PatientSearch onSelect={setPatient} showInitialEmptyState />
         </div>
 
         {patient && (
@@ -42,7 +43,14 @@ function Content() {
             {isLoading ? (
               <p className="text-sm text-muted-foreground">Carregando histórico…</p>
             ) : items.length === 0 ? (
-              <p className="animate-empty-state-enter text-sm text-muted-foreground">Nenhum agendamento encontrado.</p>
+              <EmptyState
+                kind="agenda"
+                mode="no-data"
+                compact
+                title="Nenhum agendamento encontrado"
+                description="Este paciente ainda não possui agendamentos registrados."
+                className="border-0 bg-transparent shadow-none"
+              />
             ) : (
               <table className="w-full text-sm">
                 <thead>

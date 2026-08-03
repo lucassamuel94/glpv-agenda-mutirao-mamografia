@@ -112,144 +112,23 @@ describe("ThemeProvider", () => {
   });
 
   /**
-   * A piscada no sidebar vinha do snapshot "novo" da view transition ser
-   * capturado enquanto os itens ainda estavam no meio do `transition-colors` de
-   * 150ms: o reveal mostrava as cores antigas e, ao remover o overlay, o DOM real
-   * aparecia já na cor final. A classe desliga esses tweens durante a transição.
-   */
-  describe("supressão de transições durante o reveal do tema", () => {
-    /** Só reduced-motion responde `false`; o resto segue o padrão do arquivo. */
-    function stubMatchMediaAllowingMotion() {
-      vi.stubGlobal(
-        "matchMedia",
-        vi.fn((query: string) => ({
-          matches: !query.includes("prefers-reduced-motion"),
-          addEventListener: vi.fn(),
-          removeEventListener: vi.fn(),
-        })),
-      );
-    }
-
-    function stubViewTransition() {
-      let settle: () => void = () => {};
-      const finished = new Promise<void>((resolve) => {
-        settle = resolve;
-      });
-
-      const startViewTransition = vi.fn((callback: () => void) => {
-        callback();
-        return {
-          finished,
-          ready: Promise.resolve(),
-          updateCallbackDone: Promise.resolve(),
-          skipTransition: () => {},
-        };
-      });
-
-      Object.defineProperty(document, "startViewTransition", {
-        value: startViewTransition,
-        configurable: true,
-        writable: true,
-      });
-
-      return { settle, startViewTransition };
-    }
-
-    it("marca o documento durante a transição e limpa ao terminar", async () => {
-      stubMatchMediaAllowingMotion();
-      const { settle } = stubViewTransition();
-
-      render(
-        <ThemeProvider>
-          <ThemeValue />
-        </ThemeProvider>,
-      );
-
-      fireEvent.click(screen.getByRole("button", { name: "Alternar tema" }));
-
-      // Enquanto a transição corre, nenhum tween por elemento deve valer.
-      expect(document.documentElement).toHaveClass("theme-transitioning");
-
-      settle();
-      await waitFor(() => {
-        expect(document.documentElement).not.toHaveClass("theme-transitioning");
-      });
-    });
-
-    /** Classe presa desabilitaria hover/foco animado no app inteiro. */
-    it("limpa a marca mesmo se a transição for abortada", async () => {
-      stubMatchMediaAllowingMotion();
-      let reject: (reason?: unknown) => void = () => {};
-      const finished = new Promise<void>((_resolve, r) => {
-        reject = r;
-      });
-      Object.defineProperty(document, "startViewTransition", {
-        value: vi.fn((callback: () => void) => {
-          callback();
-          return {
-            finished,
-            ready: Promise.resolve(),
-            updateCallbackDone: Promise.resolve(),
-            skipTransition: () => {},
-          };
-        }),
-        configurable: true,
-        writable: true,
-      });
-
-      render(
-        <ThemeProvider>
-          <ThemeValue />
-        </ThemeProvider>,
-      );
-
-      fireEvent.click(screen.getByRole("button", { name: "Alternar tema" }));
-      expect(document.documentElement).toHaveClass("theme-transitioning");
-
-      reject(new Error("transição abortada"));
-      await waitFor(() => {
-        expect(document.documentElement).not.toHaveClass("theme-transitioning");
-      });
-    });
-
-    it("não marca o documento quando o usuário pediu menos movimento", () => {
-      vi.stubGlobal(
-        "matchMedia",
-        vi.fn().mockReturnValue({
-          matches: true,
-          addEventListener: vi.fn(),
-          removeEventListener: vi.fn(),
-        }),
-      );
-      const { startViewTransition } = stubViewTransition();
-
-      render(
-        <ThemeProvider>
-          <ThemeValue />
-        </ThemeProvider>,
-      );
-
-      fireEvent.click(screen.getByRole("button", { name: "Alternar tema" }));
-
-      expect(startViewTransition).not.toHaveBeenCalled();
-      expect(document.documentElement).not.toHaveClass("theme-transitioning");
-    });
-  });
-
-  /**
    * REGRESSÃO da tela em branco na troca de tema.
    *
-   * Sintoma medido na gravação: durante o reveal, a área revelada saía cinza
-   * `#B8B8B8` com desvio 0.0 — plana, sem um pixel de conteúdo — e no fim o tema
-   * voltava ao anterior.
+   * Sintoma medido em gravação: a troca de tema usava a View Transitions API
+   * pra um reveal circular; qualquer render do React na janela em que o
+   * browser tirava o snapshot "novo" (mesmo só o ícone sol/lua trocando)
+   * competia com o crossfade padrão do browser e travava a tela num cinza
+   * plano no meio da troca (`rgb(129,129,129)`, medido) ou cortava o círculo
+   * antes de cobrir a tela — sem combinação de timing confiável. O reveal foi
+   * removido; a troca de tema agora só troca a classe `.dark`, sem animação.
    *
-   * Causa: `setTheme` reconstruía `app_user` a partir do storage e disparava
-   * `app-user-update` SINCRONAMENTE, portanto dentro do `flushSync` dentro do
-   * callback da view transition. O listener do Sidebar espalha o payload sobre o
-   * usuário da sessão e força outro render no meio do flush; com `app_user` sem
+   * Causa correlata (já corrigida antes da remoção do reveal, mantida coberta
+   * porque é sobre a persistência do usuário, não sobre a animação):
+   * `setTheme` reconstruía `app_user` a partir do storage e disparava
+   * `app-user-update` SINCRONAMENTE. O listener do Sidebar espalha o payload
+   * sobre o usuário da sessão e força outro render; com `app_user` sem
    * `role`, `can()` devolve `false` para tudo e o menu inteiro cai em
-   * `visibleItems.length === 0 → return null`. O browser capturava esse render
-   * vazio como snapshot "new" — e era ele que o círculo revelava.
+   * `visibleItems.length === 0 → return null`.
    */
   describe("regressão: troca de tema não pode transmitir usuário", () => {
     it("não dispara app-user-update ao trocar o tema", async () => {

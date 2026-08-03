@@ -6,6 +6,11 @@ import { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/Button";
 import { Card, CardProps } from "@/components/Card";
+import {
+  EmptyStateIllustration,
+  type EmptyStateKind,
+  type EmptyStateMode,
+} from "./empty-state-illustration";
 
 /** Variantes do ícone — alinhadas ao Card (cardIconVariants), com suporte a dark mode */
 const emptyStateIconVariants = cva("", {
@@ -91,6 +96,9 @@ const emptyStateButtonVariantMap: Record<
  * - Ação opcional: Button com variant coerente (ex.: danger → destructive)
  */
 export interface EmptyStateProps {
+  kind?: EmptyStateKind;
+  mode?: EmptyStateMode;
+  query?: string;
   icon?: LucideIcon;
   title: string;
   description?: string;
@@ -107,6 +115,8 @@ export interface EmptyStateProps {
 }
 
 export function EmptyState({
+  kind,
+  mode = "no-data",
   icon: Icon,
   title = "Nenhum resultado encontrado",
   description,
@@ -129,7 +139,9 @@ export function EmptyState({
         className,
       )}
     >
-      {Icon && (
+      {kind ? (
+        <EmptyStateIllustration kind={kind} mode={mode} animated={animate} />
+      ) : Icon ? (
         <div
           className={emptyStateIconWrapperVariants({
             variant: variant ?? "default",
@@ -141,7 +153,7 @@ export function EmptyState({
             className={emptyStateIconVariants({ variant: variant ?? "default" })}
           />
         </div>
-      )}
+      ) : null}
       <h3 className={emptyStateTitleVariants({ variant: variant ?? "default" })}>
         {title}
       </h3>

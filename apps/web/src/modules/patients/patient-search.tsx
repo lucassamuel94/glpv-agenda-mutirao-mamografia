@@ -4,13 +4,15 @@ import { useState } from "react";
 import InputSearch from "@/components/InputSearch";
 import { patientsApi, type Patient } from "@/lib/api/patients";
 import { toast } from "@/lib/toast";
+import { EmptyState } from "@/modules/common/empty-state";
 
 interface PatientSearchProps {
   onSelect: (patient: Patient) => void;
+  showInitialEmptyState?: boolean;
 }
 
 /** RN-58: busca é POST com o termo no body — nunca query param. */
-export function PatientSearch({ onSelect }: PatientSearchProps) {
+export function PatientSearch({ onSelect, showInitialEmptyState = false }: PatientSearchProps) {
   const [results, setResults] = useState<Patient[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searched, setSearched] = useState(false);
@@ -43,9 +45,27 @@ export function PatientSearch({ onSelect }: PatientSearchProps) {
         showSearchButton
         onSearch={handleSearch}
       />
+      {showInitialEmptyState && !isSearching && !searched && (
+        <EmptyState
+          kind="patients"
+          mode="no-data"
+          compact
+          title="Busque uma paciente"
+          description="Informe nome ou telefone para consultar pacientes e acessar o histórico."
+          className="border-0 bg-transparent px-0 shadow-none"
+        />
+      )}
       {isSearching && <p className="text-sm text-muted-foreground">Buscando…</p>}
       {!isSearching && searched && results.length === 0 && (
-        <p className="text-sm text-muted-foreground">Nenhuma paciente encontrada.</p>
+        <EmptyState
+          kind="patients"
+          mode="no-results"
+          compact
+          title="Nenhuma paciente encontrada"
+          description="Tente ajustar o nome ou telefone informado."
+          action={{ label: "Limpar busca", onClick: () => handleSearch("") }}
+          className="border-0 bg-transparent shadow-none"
+        />
       )}
       {results.length > 0 && (
         <ul className="max-h-64 divide-y divide-border overflow-y-auto rounded-lg border border-border">

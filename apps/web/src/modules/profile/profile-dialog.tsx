@@ -37,6 +37,7 @@ import { Input as InputField } from "@/components/Form/Fields/Input";
 import { ColorPickerField } from "@/components/ColorPickerField";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
+import { EmptyState } from "@/modules/common/empty-state";
 
 type ProfileTab = "profile" | "links" | "security" | "preferences";
 type InterfaceTheme = "light" | "dark";
@@ -419,7 +420,14 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
                       {organization.is_current && <span className="text-xs font-medium text-primary">Atual</span>}
                     </div>
                   )) : (
-                    <p className="animate-empty-state-enter rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">Nenhuma organização vinculada.</p>
+                    <EmptyState
+                      kind="organizations"
+                      mode="no-data"
+                      compact
+                      title="Nenhuma organização vinculada"
+                      description="Seu acesso ainda não possui vínculos cadastrados."
+                      className="border-0 bg-transparent shadow-none"
+                    />
                   )}
                 </div>
               </Tabs.Content>

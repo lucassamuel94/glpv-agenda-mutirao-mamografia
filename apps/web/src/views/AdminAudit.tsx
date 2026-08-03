@@ -7,7 +7,6 @@ import { EmptyState } from "@/modules/common/empty-state";
 import { ErrorMessage } from "@/modules/common/error-message";
 import { SkeletonFullPage } from "@/modules/common/skeleton";
 import Pagination from "@/components/Pagination";
-import { ScrollText } from "lucide-react";
 import { ActionBar } from "@/components/ActionBar";
 import { TableSurface } from "@/components";
 import { adminAuditApi, type AuditLogEntry } from "@/lib/api/admin-audit";
@@ -134,14 +133,22 @@ export default function AdminAuditView() {
         <TableSurface>
           {items.length === 0 ? (
             <EmptyState
-              icon={ScrollText}
-              title="Nenhuma entrada de auditoria"
+              kind="audit"
+              mode={filters.outcome || filters.cross_tenant || filters.entity ? "no-results" : "no-data"}
+              title={filters.outcome || filters.cross_tenant || filters.entity ? "Nenhum resultado encontrado" : "Nenhuma entrada de auditoria"}
               description={
                 filters.outcome || filters.cross_tenant || filters.entity
                   ? "Nenhum resultado com os filtros aplicados."
                   : "O log de auditoria ainda está vazio."
               }
-              animate={!filters.outcome && !filters.cross_tenant && !filters.entity}
+              action={
+                filters.outcome || filters.cross_tenant || filters.entity
+                  ? {
+                      label: "Limpar filtros",
+                      onClick: () => setFilters({ outcome: "", cross_tenant: "", entity: "" }),
+                    }
+                  : undefined
+              }
               className="rounded-none border-0 bg-transparent shadow-none"
             />
           ) : (

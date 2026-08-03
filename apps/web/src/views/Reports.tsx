@@ -28,6 +28,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { RequirePermission, Tabs } from "@/components";
 import InputSearch from "@/components/InputSearch";
 import { ErrorMessage } from "@/modules/common/error-message";
+import { EmptyState } from "@/modules/common/empty-state";
 import { mutiraoDashboardApi } from "@/lib/api/mutirao-dashboard";
 import type {
   MutiraoDashboard,
@@ -89,7 +90,7 @@ function KpiCard({
 
 // ─── Clinic Detail Card ─────────────────────────────────────────────────────
 
-function ClinicDetailCard({ clinic }: { clinic: MutiraoClinicMetric }) {
+function ClinicKpiCards({ clinic }: { clinic: MutiraoClinicMetric }) {
   const occupationRate =
     clinic.capacity > 0
       ? (clinic.occupied_slots / clinic.capacity) * 100
@@ -100,9 +101,7 @@ function ClinicDetailCard({ clinic }: { clinic: MutiraoClinicMetric }) {
     clinic.absence_cancellations;
 
   return (
-    <div>
-      {/* KPIs da clínica */}
-      <div className="grid gap-3 p-5 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           label="Capacidade total"
           value={formatNumber(clinic.capacity)}
@@ -138,66 +137,6 @@ function ClinicDetailCard({ clinic }: { clinic: MutiraoClinicMetric }) {
           tone="text-rose-600 dark:text-rose-400"
         />
       </div>
-
-      {/* Detalhes numéricos */}
-      <section className="border-t border-border">
-        <div className="border-b px-5 py-4">
-          <h3 className="text-base font-semibold leading-none">Detalhamento de vagas</h3>
-        </div>
-        <div className="px-0 pb-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="pl-5 text-xs uppercase">Métrica</TableHead>
-                <TableHead className="text-right pr-5 text-xs uppercase">Valor</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow>
-                <TableCell className="pl-5">Capacidade total</TableCell>
-                <TableCell className="text-right pr-5 font-medium">{formatNumber(clinic.capacity)}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="pl-5">Vagas livres</TableCell>
-                <TableCell className="text-right pr-5 font-medium text-emerald-600">{formatNumber(clinic.free_slots)}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="pl-5">Reservas ativas</TableCell>
-                <TableCell className="text-right pr-5 font-medium text-amber-600">{formatNumber(clinic.reserved_slots)}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="pl-5">Vagas ocupadas</TableCell>
-                <TableCell className="text-right pr-5 font-medium">{formatNumber(clinic.occupied_slots)}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="pl-5">Confirmações</TableCell>
-                <TableCell className="text-right pr-5 font-medium text-emerald-600">{formatNumber(clinic.confirmations)}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="pl-5">Taxa de ocupação</TableCell>
-                <TableCell className="text-right pr-5">
-                  <Badge variant={occupationVariant(occupationRate)}>
-                    {formatPercent(occupationRate)}
-                  </Badge>
-                </TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="pl-5">Cancelamentos — erro operacional</TableCell>
-                <TableCell className="text-right pr-5 text-rose-600">{formatNumber(clinic.operational_cancellations)}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="pl-5">Cancelamentos — desistência</TableCell>
-                <TableCell className="text-right pr-5 text-rose-600">{formatNumber(clinic.withdrawal_cancellations)}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="pl-5">Cancelamentos — ausência confirmada</TableCell>
-                <TableCell className="text-right pr-5 text-rose-600">{formatNumber(clinic.absence_cancellations)}</TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </div>
-      </section>
-    </div>
   );
 }
 
@@ -263,6 +202,17 @@ function PatientSearchSection() {
             onSearch={handleSearch}
           />
 
+          {!searching && !searchTerm && !selectedPatient && (
+            <EmptyState
+              kind="reports"
+              mode="no-data"
+              compact
+              title="Consulte o relatório por paciente"
+              description="Busque uma paciente para detalhar os agendamentos e indicadores."
+              className="border-0 bg-transparent px-0 shadow-none"
+            />
+          )}
+
           {searching && (
             <p className="text-sm text-muted-foreground">Buscando...</p>
           )}
@@ -310,9 +260,23 @@ function PatientSearchSection() {
           )}
 
           {!searching && searchTerm.length >= 2 && patients.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              Nenhum paciente encontrado para &ldquo;{searchTerm}&rdquo;.
-            </p>
+            <EmptyState
+              kind="patients"
+              mode="no-results"
+              compact
+              query={searchTerm}
+              title={`Nenhum paciente encontrado para “${searchTerm}”`}
+              description="Tente ajustar a busca ou limpar o termo informado."
+              action={{
+                label: "Limpar busca",
+                onClick: () => {
+                  setSearchTerm("");
+                  setPatients([]);
+                  setSelectedPatientId(null);
+                },
+              }}
+              className="border-0 bg-transparent px-0 shadow-none"
+            />
           )}
 
           {/* Histórico do paciente selecionado */}
@@ -324,9 +288,14 @@ function PatientSearchSection() {
               {loadingHistory ? (
                 <p className="text-sm text-muted-foreground">Carregando histórico...</p>
               ) : patientAppointments.length === 0 ? (
-                <p className="animate-empty-state-enter text-sm text-muted-foreground">
-                  Nenhum agendamento encontrado para este paciente.
-                </p>
+                <EmptyState
+                  kind="agenda"
+                  mode="no-data"
+                  compact
+                  title="Nenhum agendamento encontrado"
+                  description="Este paciente ainda não possui agendamentos registrados."
+                  className="border-0 bg-transparent px-0 shadow-none"
+                />
               ) : (
                 <div className="rounded-md border border-border">
                   <Table>
@@ -420,7 +389,19 @@ function ReportsPage() {
     );
   }
 
-  const { kpis, clinics, total } = data;
+  const { kpis, clinics } = data;
+  const clinicTotals = clinics.reduce(
+    (totals, clinic) => ({
+      capacity: totals.capacity + clinic.capacity,
+      confirmations: totals.confirmations + clinic.confirmations,
+      occupied_slots: totals.occupied_slots + clinic.occupied_slots,
+    }),
+    { capacity: 0, confirmations: 0, occupied_slots: 0 },
+  );
+  const clinicOccupationRate =
+    clinicTotals.capacity > 0
+      ? (clinicTotals.occupied_slots / clinicTotals.capacity) * 100
+      : 0;
 
   return (
     <>
@@ -469,27 +450,27 @@ function ReportsPage() {
             >
               <KpiCard
                 label="Total de vagas"
-                value={formatNumber(kpis.total_slots)}
+                value={formatNumber(clinicTotals.capacity)}
                 detail={`Campanha ${kpis.campaign_start?.slice(8)}/${kpis.campaign_start?.slice(5, 7)} a ${kpis.campaign_end?.slice(8)}/${kpis.campaign_end?.slice(5, 7)}`}
                 icon={CalendarClock}
                 tone="text-blue-600 dark:text-blue-400"
               />
               <KpiCard
                 label="Agendamentos confirmados"
-                value={formatNumber(kpis.confirmed_appointments)}
+                value={formatNumber(clinicTotals.confirmations)}
                 detail={`${formatNumber(kpis.appointments_today)} hoje · ${formatNumber(kpis.appointments_this_week)} esta semana`}
                 icon={CalendarCheck}
                 tone="text-emerald-600 dark:text-emerald-400"
               />
               <KpiCard
                 label="Taxa de ocupação"
-                value={formatPercent(kpis.occupation_rate)}
-                detail={`${formatNumber(kpis.confirmed_appointments)} de ${formatNumber(kpis.total_slots)} vagas preenchidas`}
+                value={formatPercent(clinicOccupationRate)}
+                detail={`${formatNumber(clinicTotals.occupied_slots)} de ${formatNumber(clinicTotals.capacity)} vagas preenchidas`}
                 icon={Percent}
                 tone={
-                  kpis.occupation_rate >= 80
+                  clinicOccupationRate >= 80
                     ? "text-emerald-600 dark:text-emerald-400"
-                    : kpis.occupation_rate >= 50
+                    : clinicOccupationRate >= 50
                       ? "text-amber-600 dark:text-amber-400"
                       : "text-rose-600 dark:text-rose-400"
                 }
@@ -506,130 +487,6 @@ function ReportsPage() {
             <Card className="gap-0 overflow-hidden py-0 shadow-none">
               {/* Busca de paciente */}
               <PatientSearchSection />
-
-              {/* Tabela Consolidada */}
-              <section>
-                <div className="px-0 pb-0">
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="hover:bg-transparent">
-                          <TableHead className="pl-5 text-xs uppercase">
-                            Clínica
-                          </TableHead>
-                          <TableHead className="text-center text-xs uppercase">
-                            Capacidade
-                          </TableHead>
-                          <TableHead className="text-center text-xs uppercase">
-                            Livres
-                          </TableHead>
-                          <TableHead className="text-center text-xs uppercase">
-                            Reserv.
-                          </TableHead>
-                          <TableHead className="text-center text-xs uppercase">
-                            Ocupadas
-                          </TableHead>
-                          <TableHead className="text-center text-xs uppercase">
-                            Confirm.
-                          </TableHead>
-                          <TableHead className="text-center text-xs uppercase">
-                            Ocupação
-                          </TableHead>
-                          <TableHead className="text-center text-xs uppercase">
-                            Cancel.
-                          </TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {clinics.length === 0 ? (
-                          <TableRow>
-                            <TableCell
-                              colSpan={8}
-                              className="h-24 animate-empty-state-enter text-center text-sm text-muted-foreground"
-                            >
-                              Nenhuma clínica cadastrada. Configure a agenda para
-                              ver os indicadores.
-                            </TableCell>
-                          </TableRow>
-                        ) : (
-                          <>
-                            {clinics.map((clinic) => {
-                              const totalCancellations =
-                                clinic.operational_cancellations +
-                                clinic.withdrawal_cancellations +
-                                clinic.absence_cancellations;
-                              const clinicOccupation =
-                                clinic.capacity > 0
-                                  ? (clinic.occupied_slots / clinic.capacity) * 100
-                                  : 0;
-                              return (
-                                <TableRow key={clinic.id}>
-                                  <TableCell className="pl-5 font-medium">
-                                    {clinic.name}
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    {formatNumber(clinic.capacity)}
-                                  </TableCell>
-                                  <TableCell className="text-center text-emerald-600">
-                                    {formatNumber(clinic.free_slots)}
-                                  </TableCell>
-                                  <TableCell className="text-center text-amber-600">
-                                    {formatNumber(clinic.reserved_slots)}
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    {formatNumber(clinic.occupied_slots)}
-                                  </TableCell>
-                                  <TableCell className="text-center font-medium">
-                                    {formatNumber(clinic.confirmations)}
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    <Badge
-                                      variant={occupationVariant(clinicOccupation)}
-                                    >
-                                      {formatPercent(clinicOccupation)}
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell className="text-center text-rose-600">
-                                    {formatNumber(totalCancellations)}
-                                  </TableCell>
-                                </TableRow>
-                              );
-                            })}
-                            <TableRow className="bg-muted/30 font-semibold">
-                              <TableCell className="pl-5">Consolidado</TableCell>
-                              <TableCell className="text-center">
-                                {formatNumber(total.capacity ?? 0)}
-                              </TableCell>
-                              <TableCell className="text-center text-emerald-600">
-                                {formatNumber(total.free_slots ?? 0)}
-                              </TableCell>
-                              <TableCell className="text-center text-amber-600">
-                                {formatNumber(total.reserved_slots ?? 0)}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                {formatNumber(total.occupied_slots ?? 0)}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                {formatNumber(total.confirmations ?? 0)}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <Badge
-                                  variant={occupationVariant(kpis.occupation_rate)}
-                                >
-                                  {formatPercent(kpis.occupation_rate)}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-center text-rose-600">
-                                {formatNumber(kpis.total_cancellations)}
-                              </TableCell>
-                            </TableRow>
-                          </>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </div>
-              </section>
             </Card>
           </div>
         </Tabs.Content>
@@ -642,52 +499,9 @@ function ReportsPage() {
             className="mt-5"
           >
           <div className="flex flex-col gap-5">
-            {/* KPIs Consolidados */}
-            <section
-              aria-label="Indicadores consolidados"
-              className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
-            >
-              <KpiCard
-                label="Total de vagas"
-                value={formatNumber(kpis.total_slots)}
-                detail={`Campanha ${kpis.campaign_start?.slice(8)}/${kpis.campaign_start?.slice(5, 7)} a ${kpis.campaign_end?.slice(8)}/${kpis.campaign_end?.slice(5, 7)}`}
-                icon={CalendarClock}
-                tone="text-blue-600 dark:text-blue-400"
-              />
-              <KpiCard
-                label="Agendamentos confirmados"
-                value={formatNumber(kpis.confirmed_appointments)}
-                detail={`${formatNumber(kpis.appointments_today)} hoje · ${formatNumber(kpis.appointments_this_week)} esta semana`}
-                icon={CalendarCheck}
-                tone="text-emerald-600 dark:text-emerald-400"
-              />
-              <KpiCard
-                label="Taxa de ocupação"
-                value={formatPercent(kpis.occupation_rate)}
-                detail={`${formatNumber(kpis.confirmed_appointments)} de ${formatNumber(kpis.total_slots)} vagas preenchidas`}
-                icon={Percent}
-                tone={
-                  kpis.occupation_rate >= 80
-                    ? "text-emerald-600 dark:text-emerald-400"
-                    : kpis.occupation_rate >= 50
-                      ? "text-amber-600 dark:text-amber-400"
-                      : "text-rose-600 dark:text-rose-400"
-                }
-              />
-              <KpiCard
-                label="Lista de espera"
-                value={formatNumber(kpis.waiting_list_count)}
-                detail="Pacientes aguardando vaga"
-                icon={Users}
-                tone="text-purple-600 dark:text-purple-400"
-              />
-            </section>
-
+            <ClinicKpiCards clinic={clinic} />
             <Card className="gap-0 overflow-hidden py-0 shadow-none">
-              {/* Busca de paciente */}
               <PatientSearchSection />
-
-              <ClinicDetailCard clinic={clinic} />
             </Card>
           </div>
           </Tabs.Content>

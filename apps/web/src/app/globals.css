@@ -266,68 +266,6 @@ button:-moz-focusring,
   box-shadow: none !important;
 }
 
-/* Troca de tema: reveal circular expandindo do botão clicado (View
-   Transitions API nativa). --theme-x/--theme-y setados via JS no toggle. */
-
-/* Receita do spec para reveal circular (§1.6): sem isto o par de imagens fica
-   com `isolation: isolate` + `plus-lighter` que a folha dinâmica da UA aplica
-   quando existem old E new. Esse blend existe para o cross-fade padrão somar
-   certo; num reveal, onde as duas camadas ficam opacas ao mesmo tempo dentro do
-   círculo, ele SOMA as cores e estoura a região para o branco. */
-::view-transition-image-pair(root) {
-  isolation: auto;
-}
-
-::view-transition-old(root) {
-  animation: none;
-  mix-blend-mode: normal;
-}
-
-::view-transition-new(root) {
-  /* `forwards`: sem isso, ao fim dos 600ms a keyframe deixa de valer e o
-     clip-path volta pro valor base da regra (circle(0%) — tudo clipado) por
-     um frame, antes do browser desmontar o overlay da view transition e
-     mostrar o DOM real por baixo. Esse "salto pra invisível e volta" é a
-     piscada no final do reveal. */
-  animation: theme-reveal 600ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
-  mix-blend-mode: normal;
-  clip-path: circle(0% at var(--theme-x, 50%) var(--theme-y, 50%));
-}
-
-@keyframes theme-reveal {
-  to {
-    clip-path: circle(150% at var(--theme-x, 50%) var(--theme-y, 50%));
-  }
-}
-
-/* Tween por elemento não compete com o reveal.
- *
- * Os itens de navegação têm `transition-colors duration-150` sobre tokens que
- * mudam entre os temas. Durante a troca isso gera dois movimentos concorrentes:
- * o círculo do reveal (ou o cross-fade do grupo do sidebar) e um tween de cor
- * por elemento, capturado a meio caminho no snapshot "new".
- *
- * A animação da troca de tema é o reveal; o tween por elemento só suja o
- * snapshot. Suprimir `transition` durante a transição faz cada snapshot nascer
- * já na cor final.
- *
- * NOTA: isto é endurecimento, não a causa da piscada relatada — a causa era a
- * borda dura do clip do `root` varrendo o sidebar no fim da animação (ver o
- * bloco de `#app-sidebar` acima).
- *
- * `animation` NÃO é suprimida de propósito: pararia `animate-spin` de loaders no
- * meio do giro. A classe `.theme-transitioning` cobre Chrome 111–124, que tem
- * `startViewTransition` mas ainda não tem `:active-view-transition`.
- */
-html:active-view-transition *,
-html:active-view-transition *::before,
-html:active-view-transition *::after,
-html.theme-transitioning *,
-html.theme-transitioning *::before,
-html.theme-transitioning *::after {
-  transition: none !important;
-}
-
 @keyframes emptyStateEnter {
   from {
     opacity: 0;
@@ -343,16 +281,126 @@ html.theme-transitioning *::after {
   animation: emptyStateEnter 0.32s ease-out both;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  /* `*` e não `(root)`: além do root, o sidebar tem grupo próprio
-     (`view-transition-name: app-sidebar`) e o cross-fade dele também precisa
-     ser suprimido para quem pediu menos movimento. */
-  ::view-transition-old(*),
-  ::view-transition-new(*) {
-    animation: none !important;
-    clip-path: none !important;
-  }
+.empty-state-illustration {
+  position: relative;
+  width: min(100%, 220px);
+  height: 126px;
+  margin: 0 auto 1.5rem;
+}
 
+.empty-state-illustration__layer,
+.empty-state-illustration__card {
+  position: absolute;
+  left: 50%;
+  width: 190px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 1rem;
+  background: hsl(var(--card));
+  box-shadow: 0 8px 20px hsl(0 0% 0% / 0.05);
+  transform: translateX(-50%);
+}
+
+.empty-state-illustration__layer {
+  height: 88px;
+  opacity: 0.72;
+}
+
+.empty-state-illustration__layer--back {
+  top: 0;
+  width: 160px;
+  opacity: 0.45;
+}
+
+.empty-state-illustration__layer--middle {
+  top: 17px;
+  width: 176px;
+  opacity: 0.6;
+}
+
+.empty-state-illustration__card {
+  top: 34px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  height: 92px;
+  padding: 1rem;
+  animation: emptyStateIllustrationCard 0.42s 0.08s ease-out both;
+}
+
+.empty-state-illustration__layer--back,
+.empty-state-illustration__layer--middle {
+  animation: emptyStateIllustrationLayer 0.36s ease-out both;
+}
+
+.empty-state-illustration__layer--middle {
+  animation-delay: 0.04s;
+}
+
+.empty-state-illustration__icon {
+  display: flex;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.6rem;
+}
+
+.empty-state-illustration__lines {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.empty-state-illustration__line {
+  display: block;
+  height: 9px;
+  border-radius: 999px;
+  background: hsl(var(--muted));
+}
+
+.empty-state-illustration__line--strong {
+  width: 82%;
+  background: hsl(var(--muted-foreground) / 0.18);
+}
+
+.empty-state-illustration__line--short {
+  width: 56%;
+}
+
+.empty-state-illustration__line--faint {
+  width: 68%;
+  opacity: 0.55;
+}
+
+@keyframes emptyStateIllustrationLayer {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+  to {
+    transform: translate(-50%, 0);
+  }
+}
+
+@keyframes emptyStateIllustrationCard {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 12px) scale(0.96);
+  }
+  70% {
+    transform: translate(-50%, -2px) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
@@ -368,6 +416,12 @@ html.theme-transitioning *::after {
   *:not(.animate-spin) {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+  }
+
+  .empty-state-illustration__layer,
+  .empty-state-illustration__card {
+    animation: none !important;
+    transform: translateX(-50%) !important;
   }
 }
 

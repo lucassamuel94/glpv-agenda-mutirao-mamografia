@@ -273,12 +273,7 @@ const Layout: React.FC<LayoutProps> = ({
                 {/* System Tray */}
                 <div className="flex items-center gap-1 pl-2 border-l border-border">
                   <Button
-                    onClick={(e) =>
-                      toggleTheme({
-                        x: e.clientX,
-                        y: e.clientY,
-                      })
-                    }
+                    onClick={() => toggleTheme()}
                     variant="ghost"
                     size="icon-sm"
                     aria-label={

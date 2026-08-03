@@ -9,7 +9,6 @@ import {
   Plus,
   Building2,
   UsersRound,
-  Hospital,
 } from "lucide-react";
 import { superAdminApi } from "@/lib/api/super-admin";
 import { authApi } from "@/lib/api/auth";
@@ -18,9 +17,9 @@ import { DataTable } from "@/components/DataTable";
 import { cn } from "@/lib/utils";
 import { SkeletonFullPage } from "@/modules/common/skeleton";
 import { ErrorMessage } from "@/modules/common/error-message";
+import { EmptyState } from "@/modules/common/empty-state";
 import { CreateSaUserDialog } from "@/modules/super-admin/create-sa-user-dialog";
 import { CreateOrganizationDialog } from "@/modules/super-admin/create-organization-dialog";
-import { CreateClinicDialog } from "@/modules/super-admin/create-clinic-dialog";
 import { EditOrganizationDialog } from "@/modules/super-admin/edit-organization-dialog";
 import { EditSaUserDialog } from "@/modules/super-admin/edit-sa-user-dialog";
 import { Confirm } from "@/components/Dialog";
@@ -51,7 +50,7 @@ const STATUS_DOT_CLASSES: Record<string, string> = {
 export default function SuperAdminPage({
   initialTab = "organizations",
 }: {
-  initialTab?: "organizations" | "users" | "clinics";
+  initialTab?: "organizations" | "users";
 }) {
   const [stats, setStats] = useState<SaDashboardStats | null>(null);
   const [saUsers, setSaUsers] = useState<SaUserListItem[] | null>(null);
@@ -69,9 +68,8 @@ export default function SuperAdminPage({
     string | null
   >(null);
   const [confirmLoading, setConfirmLoading] = useState(false);
-  const [createClinicDialogOpen, setCreateClinicDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"organizations" | "users" | "clinics">(
-    initialTab,
+  const [activeTab, setActiveTab] = useState<"organizations" | "users">(
+    initialTab === "users" ? "users" : "organizations",
   );
   const [userQuery, setUserQuery] = useState("");
   // Conexões WebSocket ao vivo. Não vive junto dos dados da listagem porque
@@ -84,7 +82,6 @@ export default function SuperAdminPage({
   const { user: currentUser, hasRole } = useAuth();
   const canDeleteOrganization = hasRole("SA_MASTER");
   const canCreateOrganization = hasRole("SA_MASTER") || hasRole("SA_USER");
-  const canCreateClinic = hasRole("SA_MASTER") || hasRole("SA_USER");
   const { socket } = useSocket();
 
   const ORGANIZATION_STATUSES = [
@@ -165,7 +162,6 @@ export default function SuperAdminPage({
   const isAnyDialogOpen =
     createDialogOpen ||
     createOrganizationDialogOpen ||
-    createClinicDialogOpen ||
     !!editOrganizationId ||
     !!editUser ||
     !!deleteOrganizationId;
@@ -174,7 +170,7 @@ export default function SuperAdminPage({
   // ativa, igual "c"/"n" em Linear/Github. Ignorado enquanto o usuário
   // digita em qualquer campo ou já existe um diálogo aberto.
   useEffect(() => {
-    if (!canCreateOrganization && !canCreateClinic) return;
+    if (!canCreateOrganization) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() !== "n") return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -188,15 +184,13 @@ export default function SuperAdminPage({
       e.preventDefault();
       if (activeTab === "organizations") {
         setCreateOrganizationDialogOpen(true);
-      } else if (activeTab === "clinics") {
-        setCreateClinicDialogOpen(true);
       } else {
         setCreateDialogOpen(true);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeTab, canCreateClinic, canCreateOrganization, isAnyDialogOpen]);
+  }, [activeTab, canCreateOrganization, isAnyDialogOpen]);
 
   const handleCreateSuccess = () => {
     setCreateDialogOpen(false);
@@ -305,7 +299,7 @@ export default function SuperAdminPage({
         variant="solid"
         value={activeTab}
         onValueChange={(value) =>
-          setActiveTab(value === "users" ? "users" : value === "clinics" ? "clinics" : "organizations")
+          setActiveTab(value === "users" ? "users" : "organizations")
         }
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -318,12 +312,6 @@ export default function SuperAdminPage({
               <UsersRound size={15} aria-hidden="true" />
               Equipe da plataforma
             </Tabs.Trigger>
-            {canCreateClinic && (
-              <Tabs.Trigger value="clinics">
-                <Hospital size={15} aria-hidden="true" />
-                Clínicas
-              </Tabs.Trigger>
-            )}
           </Tabs.List>
           {activeTab === "organizations" && canCreateOrganization && (
             <Tooltip content="Atalho: N">
@@ -346,14 +334,6 @@ export default function SuperAdminPage({
               >
                 <Plus size={16} />
                 Novo usuário
-              </Button>
-            </Tooltip>
-          )}
-          {activeTab === "clinics" && canCreateClinic && (
-            <Tooltip content="Atalho: N">
-              <Button onClick={() => setCreateClinicDialogOpen(true)} variant="primary" className="gap-1.5">
-                <Plus size={16} />
-                Nova clínica
               </Button>
             </Tooltip>
           )}
@@ -421,16 +401,26 @@ export default function SuperAdminPage({
                   <DataTable.SkeletonRow colSpan={7} />
                 ) : !items.length ? (
                   <tr>
-                    <td
-                      colSpan={7}
-                      className={cn(
-                        "px-6 py-10 text-center text-muted-foreground text-sm",
-                        !organizationFilters.search && "animate-empty-state-enter",
-                      )}
-                    >
-                      {organizationFilters.search
-                        ? "Nenhuma organização encontrada para essa busca."
-                        : "Nenhuma organização cadastrada."}
+                    <td colSpan={7} className="p-0">
+                      <EmptyState
+                        kind="organizations"
+                        mode={organizationFilters.search ? "no-results" : "no-data"}
+                        compact
+                        query={(organizationFilters.search as string) ?? ""}
+                        title={organizationFilters.search ? "Nenhuma organização encontrada" : "Nenhuma organização cadastrada"}
+                        description={organizationFilters.search ? "Tente ajustar a busca ou limpar o filtro." : "Cadastre a primeira organização para começar."}
+                        action={
+                          organizationFilters.search
+                            ? {
+                                label: "Limpar busca",
+                                onClick: () => applyOrganizationFilters({ search: undefined }),
+                              }
+                            : canCreateOrganization
+                              ? { label: "Nova organização", onClick: () => setCreateOrganizationDialogOpen(true) }
+                              : undefined
+                        }
+                        className="border-0 bg-transparent shadow-none"
+                      />
                     </td>
                   </tr>
                 ) : (
@@ -573,16 +563,21 @@ export default function SuperAdminPage({
                   <DataTable.SkeletonRow colSpan={5} />
                 ) : !filteredUsers.length ? (
                   <tr>
-                    <td
-                      colSpan={5}
-                      className={cn(
-                        "px-6 py-10 text-center text-muted-foreground text-sm",
-                        !userQuery && "animate-empty-state-enter",
-                      )}
-                    >
-                      {userQuery
-                        ? "Nenhum usuário encontrado para essa busca."
-                        : "Nenhum usuário da plataforma cadastrado."}
+                    <td colSpan={5} className="p-0">
+                      <EmptyState
+                        kind="users"
+                        mode={userQuery ? "no-results" : "no-data"}
+                        compact
+                        query={userQuery}
+                        title={userQuery ? "Nenhum usuário encontrado" : "Nenhum usuário cadastrado"}
+                        description={userQuery ? "Tente ajustar a busca ou limpar o termo informado." : "Cadastre o primeiro usuário da plataforma para começar."}
+                        action={
+                          userQuery
+                            ? { label: "Limpar busca", onClick: () => setUserQuery("") }
+                            : { label: "Novo usuário", onClick: () => setCreateDialogOpen(true) }
+                        }
+                        className="border-0 bg-transparent shadow-none"
+                      />
                     </td>
                   </tr>
                 ) : (
@@ -640,18 +635,6 @@ export default function SuperAdminPage({
           </TableSurface>
         </Tabs.Content>
 
-        <Tabs.Content value="clinics" className="mt-4">
-          <TableSurface>
-            <div className="flex min-h-56 flex-col items-center justify-center gap-2 px-6 py-12 text-center">
-              <Hospital size={24} className="text-muted-foreground" aria-hidden="true" />
-              <p className="font-medium">Clínicas do Grupo Luta Pela Vida</p>
-              <p className="max-w-md text-sm text-muted-foreground">
-                Cadastre as unidades que participarão do Mutirão de Mamografia 2026.
-                Esta área está disponível somente para Super Admin.
-              </p>
-            </div>
-          </TableSurface>
-        </Tabs.Content>
       </Tabs>
 
       <CreateSaUserDialog
@@ -667,13 +650,6 @@ export default function SuperAdminPage({
           loadStats();
           refetchOrganizations();
         }}
-      />
-
-      <CreateClinicDialog
-        open={createClinicDialogOpen}
-        onOpenChange={setCreateClinicDialogOpen}
-        organizations={stats?.organizations ?? []}
-        onSuccess={loadStats}
       />
 
       <EditOrganizationDialog

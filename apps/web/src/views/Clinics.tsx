@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Edit, Hospital, Plus, Trash2 } from "lucide-react";
+import { Edit, Plus, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/Button";
 import { Confirm } from "@/components/Dialog";
@@ -11,6 +11,7 @@ import type { Clinic } from "@/lib/api/clinics";
 import { CreateClinicDialog } from "@/modules/super-admin/create-clinic-dialog";
 import { EditClinicDialog } from "@/modules/super-admin/edit-clinic-dialog";
 import { toast } from "@/lib/toast";
+import { EmptyState } from "@/modules/common/empty-state";
 
 export default function ClinicsPage() {
   const [stats, setStats] = useState<SaDashboardStats | null>(null);
@@ -86,13 +87,14 @@ export default function ClinicsPage() {
         {isLoadingClinics ? (
           <div className="px-6 py-12 text-center text-sm text-muted-foreground">Carregando clínicas...</div>
         ) : clinics.length === 0 ? (
-          <div className="animate-empty-state-enter flex min-h-64 flex-col items-center justify-center gap-2 px-6 py-12 text-center">
-            <Hospital size={24} className="text-muted-foreground" aria-hidden="true" />
-            <p className="font-medium">Nenhuma clínica cadastrada</p>
-            <p className="max-w-md text-sm text-muted-foreground">
-              Esta área é exclusiva para Super Admin e está vinculada à organização Grupo Luta Pela Vida.
-            </p>
-          </div>
+          <EmptyState
+            kind="clinics"
+            mode="no-data"
+            title="Nenhuma clínica cadastrada"
+            description="Cadastre a primeira unidade do Grupo Luta Pela Vida para começar."
+            action={{ label: "Nova clínica", onClick: () => setIsDialogOpen(true) }}
+            className="min-h-64 rounded-none border-0 bg-transparent shadow-none"
+          />
         ) : (
           <table className="w-full text-sm">
             <thead className="border-b border-border bg-secondary text-left text-xs uppercase text-muted-foreground">

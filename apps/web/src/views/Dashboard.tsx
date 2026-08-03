@@ -38,6 +38,7 @@ import {
 import { Button } from "@/components/Button";
 import { Badge } from "@/components/Badge";
 import { PageHeader } from "@/components/PageHeader";
+import { EmptyState } from "@/modules/common/empty-state";
 import { useAuth } from "@/hooks/use-auth";
 import { mutiraoDashboardApi } from "@/lib/api/mutirao-dashboard";
 import type { MutiraoDashboard, MutiraoClinicMetric } from "@/lib/api/mutirao-dashboard";
@@ -423,8 +424,15 @@ export default function Dashboard() {
                   })}
                   {clinics.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={8} className="h-24 animate-empty-state-enter text-center text-sm text-muted-foreground">
-                        Nenhuma clínica cadastrada. Configure a agenda para ver os indicadores.
+                      <TableCell colSpan={8} className="p-0">
+                        <EmptyState
+                          kind="clinics"
+                          mode="no-data"
+                          compact
+                          title="Nenhuma clínica cadastrada"
+                          description="Configure a agenda para ver os indicadores."
+                          className="border-0 bg-transparent shadow-none"
+                        />
                       </TableCell>
                     </TableRow>
                   )}

@@ -8,7 +8,6 @@ import React, {
   useState,
   useCallback,
 } from "react";
-import { flushSync } from "react-dom";
 import { usePathname } from "next/navigation";
 import { User } from "@/types";
 
@@ -18,15 +17,10 @@ export const LOGIN_THEME_STORAGE_KEY = "app_login_theme";
 const isTheme = (value: string | null): value is Theme =>
   value === "light" || value === "dark";
 
-interface ThemeOrigin {
-  x: number;
-  y: number;
-}
-
 interface ThemeContextType {
   theme: Theme;
   setTheme: (theme: Theme) => void;
-  toggleTheme: (origin?: ThemeOrigin) => void;
+  toggleTheme: () => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -115,12 +109,11 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     }
   }, [shouldFollowSystem]);
 
-  // Aplica a classe ANTES do paint (useLayoutEffect, não useEffect). O
-  // `toggleTheme` chama `startViewTransition(() => flushSync(setTheme))`: o
-  // browser tira o snapshot "novo" assim que esse callback resolve. Com
-  // efeito passivo comum, a troca de classe podia não ter rodado ainda
-  // nesse instante — o snapshot saía com o tema errado, corrigia um frame
-  // depois, e essa correção tardia era a piscada no fim do reveal.
+  // Aplica a classe ANTES do paint (useLayoutEffect, não useEffect). No
+  // toggle via botão, `toggleTheme` já troca a classList direto (ver
+  // comentário lá) antes mesmo do React re-renderizar — este efeito só
+  // mantém `theme` e a classe em sincronia pros outros casos (mount inicial,
+  // preferência de sistema, `setTheme` chamado fora do toggle).
   useLayoutEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -213,52 +206,34 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     }
   }, []);
 
-  const toggleTheme = useCallback(
-    (origin?: ThemeOrigin) => {
-      const themes: Theme[] = ["light", "dark"];
-      const currentIndex = themes.indexOf(theme);
-      const next = themes[(currentIndex + 1) % themes.length];
+  /**
+   * Sem animação de reveal (View Transitions API) de propósito: o reveal
+   * exigia forçar o snapshot "novo" via `startViewTransition`, e qualquer
+   * render do React nessa janela (mesmo só o ícone sol/lua trocando)
+   * competia com o crossfade padrão do browser e travava a tela num cinza
+   * plano no meio da troca (`rgb(129,129,129)`, medido) ou cortava o círculo
+   * antes de cobrir a tela. Não teve combinação de timing (flushSync,
+   * `ready`, classList direto) que eliminasse a corrida de forma confiável.
+   * Troca de classe direta, sem animação, não tem essa janela de corrida.
+   *
+   * `.no-transition` mata o `transition-colors` por elemento (Tailwind) que
+   * senão faz cada item da sidebar/tabela fazer seu próprio fade de ~150ms —
+   * sem isso a troca não é seca, só trocou o mecanismo de animação (VT →
+   * tween CSS por elemento). Removida no próximo frame: só precisa cobrir o
+   * instante da troca de classe, não travar transições do resto do app.
+   */
+  const toggleTheme = useCallback(() => {
+    const themes: Theme[] = ["light", "dark"];
+    const currentIndex = themes.indexOf(theme);
+    const next = themes[(currentIndex + 1) % themes.length];
 
-      const root = document.documentElement;
-      const supportsViewTransition =
-        typeof document.startViewTransition === "function" &&
-        !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-      if (!supportsViewTransition) {
-        setTheme(next);
-        return;
-      }
-
-      root.style.setProperty("--theme-x", `${origin?.x ?? window.innerWidth}px`);
-      root.style.setProperty("--theme-y", `${origin?.y ?? 0}px`);
-
-      /**
-       * Desliga os `transition` por elemento ANTES de trocar a classe do tema.
-       *
-       * Sem isso, o snapshot "novo" da view transition é capturado enquanto os
-       * itens do sidebar ainda estão no meio do tween de `transition-colors`
-       * (150ms) — então o reveal mostra as cores antigas por 600ms e, ao remover
-       * o overlay, o DOM real aparece já na cor final. Esse salto era a piscada.
-       *
-       * A regra CSS irmã (`html.theme-transitioning *`) é o que de fato suprime;
-       * aqui só controlamos a janela em que ela vale. Chrome 125+ já cobre isso
-       * por `:active-view-transition`, mas a classe mantém o comportamento nas
-       * versões que têm `startViewTransition` sem a pseudo-classe.
-       */
-      root.classList.add("theme-transitioning");
-
-      const transition = document.startViewTransition(() => {
-        flushSync(() => setTheme(next));
-      });
-
-      // `finished` cobre também a transição abortada (outro toggle no meio) —
-      // deixar a classe presa desabilitaria hover/foco animado no app inteiro.
-      transition.finished
-        .catch(() => undefined)
-        .finally(() => root.classList.remove("theme-transitioning"));
-    },
-    [theme, setTheme],
-  );
+    const root = document.documentElement;
+    root.classList.add("no-transition");
+    setTheme(next);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => root.classList.remove("no-transition"));
+    });
+  }, [theme, setTheme]);
 
   return (
     <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>

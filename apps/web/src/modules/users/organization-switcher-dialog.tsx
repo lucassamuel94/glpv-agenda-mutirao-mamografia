@@ -6,6 +6,7 @@ import { Dialog } from "@/components/Dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "@/lib/toast";
 import { superAdminApi } from "@/lib/api/super-admin";
+import { EmptyState } from "@/modules/common/empty-state";
 
 interface OrganizationSwitcherDialogProps {
   open: boolean;
@@ -102,9 +103,14 @@ export function OrganizationSwitcherDialog({
         {loadingSaOrganizations ? (
           <p className="text-sm text-muted-foreground py-4">Carregando organizações...</p>
         ) : organizations.length === 0 ? (
-          <p className="animate-empty-state-enter text-sm text-muted-foreground py-4">
-            {isSaUser ? "Nenhuma organização cadastrada no sistema." : "Nenhuma organização disponível."}
-          </p>
+          <EmptyState
+            kind="organizations"
+            mode="no-data"
+            compact
+            title={isSaUser ? "Nenhuma organização cadastrada" : "Nenhuma organização disponível"}
+            description={isSaUser ? "Não há organizações para acessar neste momento." : "Seu acesso ainda não está vinculado a uma organização."}
+            className="border-0 bg-transparent px-0 shadow-none"
+          />
         ) : (
         <ul className="space-y-2">
           {organizations.map((c) => {
