@@ -172,21 +172,21 @@ function Content() {
           isLoading={loadingAvailability && !availability}
         />
 
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <PeriodFilter period={period} onChange={setPeriod} />
-              {clinicFilter && (
-                <button
-                  type="button"
-                  onClick={() => setClinicFilter(undefined)}
-                  className="text-xs text-primary hover:underline"
-                >
-                  Limpar filtro de clínica
-                </button>
-              )}
-            </div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <PeriodFilter period={period} onChange={setPeriod} />
+          {clinicFilter && (
+            <button
+              type="button"
+              onClick={() => setClinicFilter(undefined)}
+              className="text-xs text-primary hover:underline"
+            >
+              Limpar filtro de clínica
+            </button>
+          )}
+        </div>
 
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_570px]">
+          <div className="flex flex-col gap-4">
             {/* Densidade do mês (item 1). */}
             <AvailabilityCalendar
               days={availability?.days ?? []}

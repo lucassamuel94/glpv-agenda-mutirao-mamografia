@@ -17,10 +17,15 @@ export const LOGIN_THEME_STORAGE_KEY = "app_login_theme";
 const isTheme = (value: string | null): value is Theme =>
   value === "light" || value === "dark";
 
+interface ThemeOrigin {
+  x: number;
+  y: number;
+}
+
 interface ThemeContextType {
   theme: Theme;
   setTheme: (theme: Theme) => void;
-  toggleTheme: () => void;
+  toggleTheme: (origin?: ThemeOrigin) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -207,33 +212,139 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   }, []);
 
   /**
-   * Sem animação de reveal (View Transitions API) de propósito: o reveal
-   * exigia forçar o snapshot "novo" via `startViewTransition`, e qualquer
-   * render do React nessa janela (mesmo só o ícone sol/lua trocando)
-   * competia com o crossfade padrão do browser e travava a tela num cinza
-   * plano no meio da troca (`rgb(129,129,129)`, medido) ou cortava o círculo
-   * antes de cobrir a tela. Não teve combinação de timing (flushSync,
-   * `ready`, classList direto) que eliminasse a corrida de forma confiável.
-   * Troca de classe direta, sem animação, não tem essa janela de corrida.
+   * Reveal circular SEM View Transitions API.
    *
-   * `.no-transition` mata o `transition-colors` por elemento (Tailwind) que
-   * senão faz cada item da sidebar/tabela fazer seu próprio fade de ~150ms —
-   * sem isso a troca não é seca, só trocou o mecanismo de animação (VT →
-   * tween CSS por elemento). Removida no próximo frame: só precisa cobrir o
-   * instante da troca de classe, não travar transições do resto do app.
+   * A API nativa (`startViewTransition`) tira screenshot do DOM antes e
+   * depois do callback e faz o browser cruzar (crossfade) os dois. Esse
+   * crossfade competia com o re-render do React disparado por `setTheme`:
+   * se a main thread ficasse ocupada no meio da captura, a animação
+   * congelava numa mistura de cor errada (MEDIDO: `rgb(129,129,129)`, a
+   * média exata entre o bg escuro e o claro) até o React liberar a thread.
+   * Não teve timing (flushSync, `ready`, classList direto) que fechasse essa
+   * corrida de forma confiável nos dois sentidos.
+   *
+   * Esta versão não tira screenshot de nada: troca o tema de verdade
+   * INSTANTANEAMENTE (classList direto, sem flushSync), escondido atrás de
+   * uma cortina sólida (cor do tema ANTIGO, lida antes da troca) que cobre a
+   * tela inteira. A cortina tem um FURO que cresce a partir do ponto
+   * clicado, revelando o DOM real — que já está no tema novo por baixo o
+   * tempo todo. Não existe segundo snapshot pra crossfade: o pior caso de
+   * main thread ocupada é o furo pausar um frame e retomar, nunca uma cor
+   * errada no meio.
+   *
+   * O furo não dá pra fazer só com `clip-path: circle()` — essa função só
+   * descreve a região INCLUÍDA, não tem jeito de dizer "tudo, menos um
+   * círculo". Encolher um `circle(R at X,Y)` esconde as bordas primeiro e só
+   * fecha em X,Y por último — o efeito parece nascer longe do botão e
+   * fechar nele, ao contrário do esperado. Por isso a cortina usa uma
+   * máscara SVG (retângulo branco = cortina visível, círculo preto = furo,
+   * cresce via `r`) em vez de `clip-path`.
    */
-  const toggleTheme = useCallback(() => {
-    const themes: Theme[] = ["light", "dark"];
-    const currentIndex = themes.indexOf(theme);
-    const next = themes[(currentIndex + 1) % themes.length];
+  const toggleTheme = useCallback(
+    (origin?: ThemeOrigin) => {
+      const themes: Theme[] = ["light", "dark"];
+      const currentIndex = themes.indexOf(theme);
+      const next = themes[(currentIndex + 1) % themes.length];
 
-    const root = document.documentElement;
-    root.classList.add("no-transition");
-    setTheme(next);
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => root.classList.remove("no-transition"));
-    });
-  }, [theme, setTheme]);
+      const root = document.documentElement;
+      const reducedMotion = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
+
+      const swapInstant = () => {
+        root.classList.add("no-transition");
+        setTheme(next);
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => root.classList.remove("no-transition"));
+        });
+      };
+
+      if (reducedMotion || typeof document.createElementNS !== "function") {
+        swapInstant();
+        return;
+      }
+
+      // Cor sólida do tema ATUAL — lida antes de qualquer mutação, é o que
+      // vira a cortina que finge ser o "snapshot antigo".
+      const oldShellBg = getComputedStyle(root)
+        .getPropertyValue("--shell-bg")
+        .trim();
+
+      const x = origin?.x ?? window.innerWidth;
+      const y = origin?.y ?? 0;
+      const farthestX = Math.max(x, window.innerWidth - x);
+      const farthestY = Math.max(y, window.innerHeight - y);
+      const maxRadius = Math.hypot(farthestX, farthestY);
+
+      const svgNS = "http://www.w3.org/2000/svg";
+      const maskId = `theme-reveal-mask-${Date.now()}`;
+
+      const svg = document.createElementNS(svgNS, "svg");
+      svg.setAttribute("width", "0");
+      svg.setAttribute("height", "0");
+      svg.style.cssText = "position:fixed;pointer-events:none";
+
+      const mask = document.createElementNS(svgNS, "mask");
+      mask.setAttribute("id", maskId);
+
+      const rect = document.createElementNS(svgNS, "rect");
+      rect.setAttribute("width", "100%");
+      rect.setAttribute("height", "100%");
+      rect.setAttribute("fill", "white");
+
+      const hole = document.createElementNS(svgNS, "circle");
+      hole.setAttribute("cx", String(x));
+      hole.setAttribute("cy", String(y));
+      hole.setAttribute("r", "0");
+      hole.setAttribute("fill", "black");
+
+      mask.append(rect, hole);
+      svg.appendChild(mask);
+      document.body.appendChild(svg);
+
+      const overlay = document.createElement("div");
+      overlay.setAttribute("aria-hidden", "true");
+      overlay.style.cssText = [
+        "position:fixed",
+        "inset:0",
+        "z-index:2147483647",
+        "pointer-events:none",
+        oldShellBg ? `background:hsl(${oldShellBg})` : "",
+        `mask:url(#${maskId})`,
+        `-webkit-mask:url(#${maskId})`,
+      ]
+        .filter(Boolean)
+        .join(";");
+      document.body.appendChild(overlay);
+
+      swapInstant();
+
+      const cleanup = () => {
+        overlay.remove();
+        svg.remove();
+      };
+
+      // Raio via rAF manual, não via `hole.animate`: interpolar o atributo
+      // `r` de um <circle> por CSS/WAAPI depende de suporte a geometry
+      // properties que varia por browser — o loop manual funciona em
+      // qualquer um que tenha SVG mask, sem depender disso.
+      const duration = 500;
+      const start = performance.now();
+      const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+
+      const step = (now: number) => {
+        const t = Math.min(1, (now - start) / duration);
+        hole.setAttribute("r", String(maxRadius * easeOutCubic(t)));
+        if (t < 1) {
+          requestAnimationFrame(step);
+        } else {
+          cleanup();
+        }
+      };
+      requestAnimationFrame(step);
+    },
+    [theme, setTheme],
+  );
 
   return (
     <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>

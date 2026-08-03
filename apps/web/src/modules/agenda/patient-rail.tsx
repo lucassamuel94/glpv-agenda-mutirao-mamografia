@@ -71,15 +71,15 @@ export function PatientRail({
 
   return (
     <Card className="gap-0 py-0 shadow-none">
-      <CardHeader className="border-b px-4 py-3">
-        <div className="flex flex-col gap-0.5">
+      <CardHeader className="border-b px-5 py-4">
+        <div className="flex flex-col gap-1">
           <CardTitle className="text-sm">1. Quem está agendando?</CardTitle>
           <p className="text-xs text-muted-foreground">
             Identifique a paciente antes de escolher o horário.
           </p>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3 p-4">
+      <CardContent className="space-y-4 p-5">
         {isCreating ? (
           <>
             <PatientCreateForm onCreated={onSelectPatient} />
