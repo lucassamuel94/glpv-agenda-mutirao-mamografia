@@ -20,6 +20,8 @@ interface InputSearchProps {
   showClearButton?: boolean;
   searchButtonText?: string;
   containerClassName?: string;
+  /** Foca o campo ao montar. Use onde a busca é a primeira ação da tela. */
+  autoFocus?: boolean;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onSearch?: (value: string) => void;
 }
@@ -45,6 +47,7 @@ export default function InputSearch({
   showClearButton = true,
   searchButtonText = "Buscar",
   containerClassName,
+  autoFocus,
 }: InputSearchProps) {
   const [searchValue, setSearchValue] = useState(value);
 
@@ -77,6 +80,7 @@ export default function InputSearch({
     value: searchValue,
     onChange: handleChange,
     onKeyDown: handleKeyDown,
+    autoFocus,
     icon: <Search size={18} />,
     className: inputClassName,
     iconPosition: "start" as const,

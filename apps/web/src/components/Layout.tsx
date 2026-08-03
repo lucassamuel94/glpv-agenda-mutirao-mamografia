@@ -11,6 +11,7 @@ import {
   ChevronRight,
   HelpCircle,
   Loader2,
+  Plus,
   Sun,
   Moon,
   PanelLeft,
@@ -23,6 +24,34 @@ import { Separator } from "./ui/separator";
 import { SkeletonBar } from "@/modules/common/skeleton";
 import { useTheme } from "@/providers/ThemeProvider";
 import { cn } from "@/lib/utils";
+import { Tooltip } from "@/components";
+import { useNewBooking } from "@/contexts/new-booking-context";
+
+/**
+ * Botão de atalho para abrir o wizard de agendamento (modal global).
+ * Renderizado no system tray do header — disponível em qualquer rota protegida.
+ *
+ * O hook `useNewBooking` lança se o provider não estiver acima na árvore.
+ * Como o Layout vive dentro do `ProtectedLayout` que monta o provider, isso
+ * nunca acontece em produção. O botão é seguro aqui.
+ */
+function NewBookingButton() {
+  const { open } = useNewBooking();
+
+  return (
+    <Tooltip content="Novo agendamento (N)">
+      <Button
+        onClick={() => open()}
+        variant="primary"
+        size="sm"
+        className="gap-1.5 mr-1"
+      >
+        <Plus size={14} />
+        <span className="hidden sm:inline">Agendar</span>
+      </Button>
+    </Tooltip>
+  );
+}
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -272,6 +301,7 @@ const Layout: React.FC<LayoutProps> = ({
 
                 {/* System Tray */}
                 <div className="flex items-center gap-1 pl-2 border-l border-border">
+                  <NewBookingButton />
                   <Button
                     onClick={(e) =>
                       toggleTheme({ x: e.clientX, y: e.clientY })

@@ -215,10 +215,16 @@ export class SlotService {
   }
 
   /**
-   * Segura a vaga para o painel por alguns minutos (RN-32). Devolve o instante de
-   * expiração para a interface avisar a operadora antes de o hold cair.
+   * Segura a vaga para o painel por alguns minutos (RN-32).
+   *
+   * Devolve o tempo RESTANTE em segundos, não um horário de parede. O prazo é a
+   * única grandeza aqui que não é "hora de parede de São Paulo" (RN-60): ele
+   * nasce de `Date.now()` num processo em `TZ=UTC`, então formatá-lo como texto
+   * de parede entregaria dígitos em UTC — 3h à frente do relógio de quem opera o
+   * painel. Segundos restantes não têm fuso e é exatamente o que a contagem
+   * regressiva da interface consome.
    */
-  async hold(slotId: string): Promise<{ slotId: string; reservedUntil: string }> {
+  async hold(slotId: string): Promise<{ slotId: string; expiresInSeconds: number }> {
     const reservedUntil = new Date(Date.now() + PANEL_HOLD_MINUTES * 60_000);
     const slot = await this.slots.holdFree(slotId, this.organizationId(), reservedUntil);
     if (!slot) {
@@ -227,7 +233,7 @@ export class SlotService {
         message: 'Vaga não está mais livre.',
       });
     }
-    return { slotId: slot.id, reservedUntil: wallClock(reservedUntil) };
+    return { slotId: slot.id, expiresInSeconds: PANEL_HOLD_MINUTES * 60 };
   }
 
   /** Libera um hold do painel (formulário fechado sem confirmar). Idempotente. */

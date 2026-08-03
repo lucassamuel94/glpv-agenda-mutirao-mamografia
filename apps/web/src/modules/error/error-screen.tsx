@@ -87,7 +87,7 @@ const ErrorScreen: React.FC<ErrorScreenProps> = ({
       </div>
 
       <div className="relative z-10 mt-16 text-xs text-muted-foreground">
-        {APP_NAME} · Enterprise Platform &copy; {new Date().getFullYear()}
+        {APP_NAME} &copy; {new Date().getFullYear()}
       </div>
     </div>
   );

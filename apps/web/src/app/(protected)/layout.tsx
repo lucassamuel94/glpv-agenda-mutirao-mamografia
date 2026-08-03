@@ -4,6 +4,8 @@ import React from 'react';
 import NextDynamic from 'next/dynamic';
 import Layout from '@/components/Layout';
 import { LayoutSlotsProvider, useLayoutSlots } from '@/components/LayoutSlots';
+import { NewBookingProvider } from '@/contexts/new-booking-context';
+import { NewBookingModal } from '@/modules/agenda/new-booking-modal';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,9 +44,12 @@ export default function ProtectedLayout({
 }) {
   return (
     <RequireAuth>
-      <LayoutSlotsProvider>
-        <PersistentLayoutShell>{children}</PersistentLayoutShell>
-      </LayoutSlotsProvider>
+      <NewBookingProvider>
+        <LayoutSlotsProvider>
+          <PersistentLayoutShell>{children}</PersistentLayoutShell>
+        </LayoutSlotsProvider>
+        <NewBookingModal />
+      </NewBookingProvider>
     </RequireAuth>
   );
 }

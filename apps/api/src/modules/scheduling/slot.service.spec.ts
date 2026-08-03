@@ -293,14 +293,18 @@ describe('SlotService', () => {
   });
 
   describe('hold', () => {
-    it('segura a vaga e devolve a expiração para a interface avisar', async () => {
+    /**
+     * Segundos restantes em vez de horário de parede: o prazo nasce de
+     * `Date.now()` num processo em `TZ=UTC`, então texto de parede sairia 3h à
+     * frente do relógio de quem opera o painel.
+     */
+    it('segura a vaga e devolve o tempo restante, sem fuso', async () => {
       const holdFree = jest.fn().mockResolvedValue({ id: 'slot-a' });
       const service = build({ holdFree });
 
       const result = await service.hold('slot-a');
 
-      expect(result.slotId).toBe('slot-a');
-      expect(result.reservedUntil).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/);
+      expect(result).toEqual({ slotId: 'slot-a', expiresInSeconds: 600 });
       expect(holdFree).toHaveBeenCalledWith('slot-a', 'organization-id', expect.any(Date));
     });
 

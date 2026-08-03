@@ -9,10 +9,16 @@ import { EmptyState } from "@/modules/common/empty-state";
 interface PatientSearchProps {
   onSelect: (patient: Patient) => void;
   showInitialEmptyState?: boolean;
+  /** Foca a busca ao montar — use quando ela é a primeira ação da tela/diálogo. */
+  autoFocus?: boolean;
 }
 
 /** RN-58: busca é POST com o termo no body — nunca query param. */
-export function PatientSearch({ onSelect, showInitialEmptyState = false }: PatientSearchProps) {
+export function PatientSearch({
+  onSelect,
+  showInitialEmptyState = false,
+  autoFocus,
+}: PatientSearchProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [results, setResults] = useState<Patient[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -48,6 +54,7 @@ export function PatientSearch({ onSelect, showInitialEmptyState = false }: Patie
         onChange={(event) => setSearchTerm(event.target.value)}
         showSearchButton
         containerClassName="w-full max-w-none"
+        autoFocus={autoFocus}
         onSearch={handleSearch}
       />
       {showInitialEmptyState && !isSearching && !searched && (

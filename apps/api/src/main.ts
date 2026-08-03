@@ -176,7 +176,7 @@ async function bootstrap() {
   // ==========================================
   // DOCUMENTAÇÃO SWAGGER
   // ==========================================
-  const appName = process.env.APP_NAME || 'EZ Starter Kit';
+  const appName = process.env.APP_NAME || 'Mutirão Mamografia';
   const swaggerConfig = new DocumentBuilder()
     .setTitle(`${appName} - API`)
     .setDescription(

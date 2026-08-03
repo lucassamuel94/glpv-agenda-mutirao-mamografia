@@ -248,7 +248,7 @@ describe("Setup — conclusão da configuração inicial", () => {
       ).toBeInTheDocument(),
     );
 
-    const brandMark = screen.getAllByRole("img", { name: "EZ Starter Kit" })[0];
+    const brandMark = screen.getAllByRole("img", { name: "Mutirão Mamografia" })[0];
     const brandPanel = brandMark.closest("div.group");
     expect(brandPanel).toBeTruthy();
 

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Refinar o shell autenticado do EZ Starter Kit com a densidade, neutralidade e composição espacial inspiradas no Linear, preservando comportamento, rotas e contratos.
+**Goal:** Refinar o shell autenticado do Mutirão Mamografia com a densidade, neutralidade e composição espacial inspiradas no Linear, preservando comportamento, rotas e contratos.
 
 **Architecture:** Evoluir os tokens semânticos e os componentes pais existentes (`Layout`, `Sidebar`, `AppBrand` e `PageHeader`) sem alterar os primitivos em `src/components/ui/`. O desktop terá sidebar compacta e uma superfície principal recuada; o mobile continuará usando o drawer atual, com foco e estados acessíveis.
 

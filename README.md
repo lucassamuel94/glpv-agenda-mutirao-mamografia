@@ -1,4 +1,4 @@
-# EZ Starter Kit
+# Mutirão Mamografia
 
 Template full-stack para criar aplicações SaaS/CRM white-label com autenticação, multi-tenancy, controle de acesso, auditoria e uma interface administrativa pronta para evoluir.
 

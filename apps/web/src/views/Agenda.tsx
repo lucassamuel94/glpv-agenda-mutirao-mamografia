@@ -1,246 +1,114 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
-import { RequirePermission } from "@/components";
+import { Button } from "@/components/Button";
+import { RequirePermission, TableSurface } from "@/components";
+import { Form, Select, DatePicker } from "@/components/Form";
 import { PERMISSIONS } from "@/lib/permissions";
-import {
-  useAvailability,
-  useClinics,
-  useDaySlots,
-  useSlotHold,
-  useSuggestions,
-} from "@/hooks/use-agenda";
-import { AvailabilityCalendar } from "@/modules/agenda/availability-calendar";
-import { BookSlotDialog } from "@/modules/agenda/book-slot-dialog";
-import { ClinicBalanceBar } from "@/modules/agenda/clinic-balance-bar";
-import { DaySlotsPanel } from "@/modules/agenda/day-slots-panel";
-import { PatientRail } from "@/modules/agenda/patient-rail";
-import { PeriodFilter, SuggestionsPanel } from "@/modules/agenda/suggestions-panel";
-import { ErrorMessage } from "@/modules/common/error-message";
-import { toast } from "@/lib/toast";
-import type { Patient } from "@/lib/api/patients";
-import type { Slot, SlotPeriod, SlotSuggestion } from "@/lib/api/scheduling";
+import { useClinics, useAgendaSlots } from "@/hooks/use-agenda";
+import { useNewBooking } from "@/contexts/new-booking-context";
+import { formatDateTimeOnlyPtBR } from "@/lib/formatters";
+import { cn } from "@/lib/utils";
+import type { SlotStatus } from "@/lib/api/scheduling";
 
-/**
- * Janela da campanha (RN: `CHK_slots_campaign_window`). Fora dela não existe vaga,
- * então o calendário não deixa navegar além.
- */
-const CAMPAIGN_START = "2026-09-08";
-const CAMPAIGN_END = "2026-10-30";
+const STATUS_LABEL: Record<SlotStatus, string> = {
+  LIVRE: "Livre",
+  RESERVADA: "Reservada",
+  OCUPADA: "Ocupada",
+};
 
-function monthOf(day: string): string {
-  return day.slice(0, 7);
-}
+const STATUS_CLASS: Record<SlotStatus, string> = {
+  LIVRE: "text-emerald-600",
+  RESERVADA: "text-amber-600",
+  OCUPADA: "text-muted-foreground",
+};
 
-function monthBounds(monthCursor: string): { from: string; to: string } {
-  const [year, month] = monthCursor.split("-").map(Number);
-  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  return { from: `${monthCursor}-01`, to: `${monthCursor}-${lastDay}` };
+function todayISO(): string {
+  return new Date().toISOString().slice(0, 10);
 }
 
 function Content() {
-  const [patient, setPatient] = useState<Patient | null>(null);
-  const [monthCursor, setMonthCursor] = useState(monthOf(CAMPAIGN_START));
-  const [selectedDay, setSelectedDay] = useState<string | null>(null);
-  const [period, setPeriod] = useState<SlotPeriod | undefined>();
-  const [clinicFilter, setClinicFilter] = useState<string | undefined>();
-  const [heldSlot, setHeldSlot] = useState<{ slot: Slot; reservedUntil: string } | null>(null);
-  const [holdingSlotId, setHoldingSlotId] = useState<string | null>(null);
-
   const { data: clinics } = useClinics();
-  const { hold, release } = useSlotHold();
+  const { open: openBooking } = useNewBooking();
+  const [clinicId, setClinicId] = useState<string | null>(null);
+  const [date, setDate] = useState<string>(todayISO());
 
-  const range = monthBounds(monthCursor);
-  const {
-    data: availability,
-    error: availabilityError,
-    isLoading: loadingAvailability,
-    refresh: refreshAvailability,
-  } = useAvailability({ ...range, clinicId: clinicFilter, period });
-
-  // Sugestões varrem a campanha inteira, não só o mês visível: o melhor encaixe
-  // pode estar fora do mês que a operadora está olhando.
-  const { data: suggestions, isLoading: loadingSuggestions } = useSuggestions({
-    from: CAMPAIGN_START,
-    to: CAMPAIGN_END,
-    period,
-    limit: 3,
-    enabled: Boolean(patient),
-  });
-
-  const clinicIds = useMemo(
-    () =>
-      clinicFilter
-        ? [clinicFilter]
-        : (availability?.clinics ?? []).map((clinic) => clinic.clinicId),
-    [availability, clinicFilter],
-  );
-  const { data: daySlots, isLoading: loadingDaySlots } = useDaySlots(selectedDay, clinicIds);
-
-  const visibleDaySlots = useMemo(() => {
-    const slots = daySlots ?? [];
-    if (!period) return slots;
-    return slots.filter((slot) => {
-      const isMorning = Number(slot.slot_at.slice(11, 13)) < 12;
-      return period === "MANHA" ? isMorning : !isMorning;
-    });
-  }, [daySlots, period]);
-
-  const clinicNameById = useMemo(
-    () => new Map((clinics ?? []).map((clinic) => [clinic.id, clinic.name])),
+  const clinicOptions = useMemo(
+    () => (clinics || []).map((clinic) => ({ value: clinic.id, label: clinic.name })),
     [clinics],
   );
 
-  /** Segura a vaga ANTES de abrir o formulário (item 5): o conflito aparece aqui, não no fim. */
-  const pickSlot = async (slot: Slot) => {
-    if (!patient) {
-      toast("Identifique a paciente antes de escolher o horário.", "error");
-      return;
-    }
-    setHoldingSlotId(slot.id);
-    try {
-      const result = await hold(slot.id);
-      setHeldSlot({ slot, reservedUntil: result?.reservedUntil ?? "" });
-    } catch (err) {
-      toast(
-        err instanceof Error ? err.message : "Vaga não está mais livre. Escolha outro horário.",
-        "error",
-      );
-      await refreshAvailability();
-    } finally {
-      setHoldingSlotId(null);
-    }
-  };
+  const { data: slots, isLoading } = useAgendaSlots(clinicId, date);
+  const items = useMemo(() => slots || [], [slots]);
 
-  const pickSuggestion = (suggestion: SlotSuggestion) => {
-    setSelectedDay(suggestion.slotAt.slice(0, 10));
-    setMonthCursor(monthOf(suggestion.slotAt.slice(0, 10)));
-    void pickSlot({
-      id: suggestion.slotId,
-      clinic_id: suggestion.clinicId,
-      slot_at: suggestion.slotAt,
-      status: "LIVRE",
-    });
-  };
-
-  /** Desistir devolve a vaga na hora, sem esperar o cron de expiração. */
-  const abandonHold = async () => {
-    const current = heldSlot;
-    setHeldSlot(null);
-    if (current) {
-      await release(current.slot.id);
-      await refreshAvailability();
-    }
-  };
-
-  const finishBooking = async () => {
-    setHeldSlot(null);
-    setSelectedDay(null);
-    setPatient(null);
-    await refreshAvailability();
-  };
-
-  if (availabilityError) {
-    return (
-      <>
-        <PageHeader title="Agenda" />
-        <ErrorMessage
-          error={
-            availabilityError instanceof Error
-              ? availabilityError.message
-              : String(availabilityError)
-          }
-        />
-      </>
-    );
-  }
+  const freeCount = items.filter((s) => s.status === "LIVRE").length;
 
   return (
     <>
       <PageHeader
         title="Agenda"
-        description="Escolha a paciente, veja onde há vaga na campanha e mantenha o equilíbrio entre as clínicas."
+        description="Visualize a grade de vagas por clínica e dia."
+        actions={
+          <Button onClick={() => openBooking()} variant="primary" className="gap-1.5">
+            <Plus size={16} />
+            Novo agendamento
+          </Button>
+        }
       />
+      <TableSurface>
+        <div className="border-b border-border p-4">
+          <Form
+            id="agenda-filters"
+            onSubmit={() => undefined}
+            showDefaultButtons={false}
+            defaultValues={{ clinicId: "", date }}
+            onChange={(data) => {
+              if (typeof data.clinicId === "string") setClinicId(data.clinicId || null);
+              if (typeof data.date === "string" && data.date) setDate(data.date);
+            }}
+            className="flex flex-wrap items-end gap-4"
+          >
+            <Select name="clinicId" label="Clínica" placeholder="Selecione a clínica" options={clinicOptions} />
+            <DatePicker name="date" label="Dia" />
+          </Form>
+        </div>
 
-      <div className="flex flex-col gap-4">
-        {/* Equilíbrio sempre visível (item 2) — clicar filtra a clínica. */}
-        <ClinicBalanceBar
-          clinics={availability?.clinics ?? []}
-          selectedClinicId={clinicFilter}
-          onSelectClinic={setClinicFilter}
-          isLoading={loadingAvailability && !availability}
-        />
-
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <PeriodFilter period={period} onChange={setPeriod} />
-          {clinicFilter && (
-            <button
-              type="button"
-              onClick={() => setClinicFilter(undefined)}
-              className="text-xs text-primary hover:underline"
-            >
-              Limpar filtro de clínica
-            </button>
+        <div className="overflow-x-auto p-4">
+          {!clinicId ? (
+            <p className="text-sm text-muted-foreground">Selecione uma clínica para ver a grade.</p>
+          ) : isLoading ? (
+            <p className="text-sm text-muted-foreground">Carregando grade…</p>
+          ) : items.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhuma vaga cadastrada neste dia.</p>
+          ) : (
+            <>
+              <p className="mb-3 text-xs text-muted-foreground">
+                {freeCount} livre{freeCount !== 1 ? "s" : ""} de {items.length} vagas
+              </p>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs uppercase text-muted-foreground">
+                    <th className="pb-2">Horário</th>
+                    <th className="pb-2">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((slot) => (
+                    <tr key={slot.id} className="border-t border-border">
+                      <td className="py-2">{formatDateTimeOnlyPtBR(slot.slot_at)}</td>
+                      <td className={cn("py-2", STATUS_CLASS[slot.status])}>
+                        {STATUS_LABEL[slot.status]}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
           )}
         </div>
-
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_570px]">
-          <div className="flex flex-col gap-4">
-            {/* Densidade do mês (item 1). */}
-            <AvailabilityCalendar
-              days={availability?.days ?? []}
-              monthCursor={monthCursor}
-              selectedDay={selectedDay}
-              onSelectDay={setSelectedDay}
-              onChangeMonth={(next) => {
-                setMonthCursor(next);
-                setSelectedDay(null);
-              }}
-              isLoading={loadingAvailability}
-              minDay={CAMPAIGN_START}
-              maxDay={CAMPAIGN_END}
-            />
-
-            <DaySlotsPanel
-              day={selectedDay}
-              slots={visibleDaySlots}
-              clinics={availability?.clinics ?? []}
-              isLoading={loadingDaySlots}
-              onPickSlot={(slot) => void pickSlot(slot)}
-              pendingSlotId={holdingSlotId}
-            />
-          </div>
-
-          {/* Rail fixo: paciente primeiro (item 3) + melhores encaixes (item 4). */}
-          <aside className="flex flex-col gap-4">
-            <PatientRail
-              patient={patient}
-              onSelectPatient={setPatient}
-              onClearPatient={() => setPatient(null)}
-            />
-            {patient && (
-              <SuggestionsPanel
-                suggestions={suggestions ?? []}
-                isLoading={loadingSuggestions}
-                onPick={pickSuggestion}
-                disabled={Boolean(holdingSlotId)}
-              />
-            )}
-          </aside>
-        </div>
-      </div>
-
-      <BookSlotDialog
-        slot={heldSlot?.slot ?? null}
-        patient={patient}
-        clinicName={heldSlot ? clinicNameById.get(heldSlot.slot.clinic_id) : undefined}
-        reservedUntil={heldSlot?.reservedUntil}
-        onOpenChange={(open) => {
-          if (!open) void abandonHold();
-        }}
-        onBooked={() => void finishBooking()}
-      />
+      </TableSurface>
     </>
   );
 }

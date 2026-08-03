@@ -52,12 +52,12 @@ export const IS_DEV = process.env.NODE_ENV === "development";
  * e um fallback com marca de um cliente específico é o tipo de coisa que só
  * aparece pra quem sobe sem configurar `.env.local`, na hora errada.
  */
-export const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? "EZ Starter Kit";
+export const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? "Mutirão Mamografia";
 
 /** NEXT_PUBLIC_APP_DESCRIPTION — descrição da aplicação */
 export const APP_DESCRIPTION =
   process.env.NEXT_PUBLIC_APP_DESCRIPTION ??
-  "EZ Starter Kit é uma plataforma de CRM para gestão de clientes e leads.";
+  "Sistema de agendamento do Mutirão de Mamografia 2026.";
 
 /** NEXT_PUBLIC_APP_URL — URL da aplicação */
 export const APP_URL =

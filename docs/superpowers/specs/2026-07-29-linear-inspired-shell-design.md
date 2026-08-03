@@ -4,7 +4,7 @@ Data: 2026-07-29
 
 ## 1. Objetivo
 
-Refinar o shell autenticado do EZ Starter Kit para aproximá-lo da linguagem
+Refinar o shell autenticado do Mutirão Mamografia para aproximá-lo da linguagem
 visual do Linear: compacto, neutro, silencioso e operacional. A referência
 orienta proporção, densidade, hierarquia, cores e acabamento, sem copiar marca,
 conteúdo, arquitetura de informação ou funcionalidades específicas.

@@ -92,7 +92,7 @@ Data: 2026-07-29
   ação/foco observados nas capturas.
 - Imagens/assets: nenhum asset de produto da referência foi recriado; a marca
   existente e ícones Lucide foram preservados.
-- Conteúdo: textos e regras de negócio do EZ Starter Kit foram preservados.
+- Conteúdo: textos e regras de negócio do Mutirão Mamografia foram preservados.
 - Acessibilidade: item ativo sem depender só de cor, controles nomeados, menu
   do usuário acionável por teclado, drawer com Escape e retorno de foco.
 

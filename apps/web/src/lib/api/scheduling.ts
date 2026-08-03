@@ -66,7 +66,12 @@ export type SlotSuggestion = {
   reason: SuggestionReason;
 };
 
-export type SlotHold = { slotId: string; reservedUntil: string };
+/**
+ * Resultado do hold. `expiresInSeconds` é tempo RESTANTE, não horário: o prazo
+ * é a única grandeza do agendamento que não é hora de parede de São Paulo
+ * (RN-60), e segundos restantes não têm fuso.
+ */
+export type SlotHold = { slotId: string; expiresInSeconds: number };
 
 class SchedulingApi extends ApiService {
   slots(clinicId: string, date: string): Promise<ApiResponse<Slot[]>> {
