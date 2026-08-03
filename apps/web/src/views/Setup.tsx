@@ -45,6 +45,7 @@ import {
 import { toRegisterPayload } from "@/modules/auth/request-access-payload";
 import { authApi } from "@/lib/api/auth";
 import { toast } from "@/lib/toast";
+import { refreshBranding } from "@/app/actions";
 import {
   APP_NAME,
   APP_VERSION,
@@ -270,6 +271,9 @@ export default function SetupPage() {
         return;
       }
       toast("Configuração concluída! Redirecionando...", "success");
+      // Título da aba vem do nome da organização (ver generateMetadata em
+      // app/layout.tsx) — invalida o cache antes do reload.
+      await refreshBranding().catch(() => {});
       window.location.assign("/");
     } catch {
       toast("Erro ao concluir configuração. Tente novamente.", "error");

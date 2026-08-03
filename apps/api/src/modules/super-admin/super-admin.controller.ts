@@ -25,6 +25,9 @@ import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
 import { SendWsMessageDto } from './dto/send-ws-message.dto';
 import { ListOrganizationsDto } from './dto/list-organizations.dto';
+import { CreateClinicDto } from './dto/create-clinic.dto';
+import { ListClinicsDto } from './dto/list-clinics.dto';
+import { UpdateClinicDto } from './dto/update-clinic.dto';
 
 @ApiTags('super-admin')
 @ApiBearerAuth()
@@ -61,6 +64,39 @@ export class SuperAdminController {
   async createOrganization(@Body() dto: CreateOrganizationDto, @Req() req: Request) {
     const user = req.user as { sub?: string };
     return this.superAdminService.createOrganization(dto, user?.sub);
+  }
+
+  @Post('clinics')
+  @Roles(UserRole.SA_MASTER, UserRole.SA_USER)
+  @ApiOperation({ summary: 'Cadastra uma clínica do Grupo Luta Pela Vida' })
+  @ApiResponse({ status: 201, description: 'Clínica cadastrada' })
+  @ApiResponse({ status: 403, description: 'Apenas Super Admin' })
+  async createClinic(@Body() dto: CreateClinicDto) {
+    return this.superAdminService.createClinic(dto);
+  }
+
+  @Get('clinics')
+  @Roles(UserRole.SA_MASTER, UserRole.SA_USER)
+  @ApiOperation({ summary: 'Lista clínicas do Grupo Luta Pela Vida' })
+  @ApiResponse({ status: 200, description: 'Clínicas cadastradas' })
+  async listClinics(@Query() dto: ListClinicsDto) {
+    return this.superAdminService.listClinics(dto.organizationId);
+  }
+
+  @Patch('clinics/:id')
+  @Roles(UserRole.SA_MASTER, UserRole.SA_USER)
+  @ApiOperation({ summary: 'Atualiza uma clínica do Grupo Luta Pela Vida' })
+  @ApiResponse({ status: 200, description: 'Clínica atualizada' })
+  async updateClinic(@Param('id') id: string, @Body() dto: UpdateClinicDto) {
+    return this.superAdminService.updateClinic(id, dto);
+  }
+
+  @Delete('clinics/:id')
+  @Roles(UserRole.SA_MASTER, UserRole.SA_USER)
+  @ApiOperation({ summary: 'Remove uma clínica do Grupo Luta Pela Vida' })
+  @ApiResponse({ status: 200, description: 'Clínica removida' })
+  async deleteClinic(@Param('id') id: string) {
+    return this.superAdminService.deleteClinic(id);
   }
 
   @Patch('organizations/:id')

@@ -37,7 +37,10 @@ import { resolveDbSsl } from './db-ssl';
         port: parseInt(process.env.DB_PORT || configService.get('DB_PORT') || '5432') || 5432,
         username: process.env.DB_USERNAME || configService.get('DB_USERNAME') || 'postgres',
         password: process.env.DB_PASSWORD || configService.get('DB_PASSWORD') || '',
-        database: process.env.DB_DATABASE || configService.get('DB_DATABASE') || 'app',
+        database:
+          process.env.DB_DATABASE ||
+          configService.get('DB_DATABASE') ||
+          'glpv-agenda-mutirao-mamografia',
         entities: ALL_ENTITIES,
         /**
          * `synchronize` SÓ em desenvolvimento, sem exceção — nunca mais
@@ -95,7 +98,10 @@ import { resolveDbSsl } from './db-ssl';
           ) || 5432,
         username: process.env.DB_USERNAME || configService.get('DB_USERNAME') || 'postgres',
         password: process.env.DB_PASSWORD || configService.get('DB_PASSWORD') || '',
-        database: process.env.DB_DATABASE || configService.get('DB_DATABASE') || 'app',
+        database:
+          process.env.DB_DATABASE ||
+          configService.get('DB_DATABASE') ||
+          'glpv-agenda-mutirao-mamografia',
         entities: ALL_ENTITIES,
         synchronize: false,
         logging: configService.get('NODE_ENV') !== 'production',
@@ -133,7 +139,10 @@ import { resolveDbSsl } from './db-ssl';
           ) || 5432,
         username: process.env.DB_USERNAME || configService.get('DB_USERNAME') || 'postgres',
         password: process.env.DB_PASSWORD || configService.get('DB_PASSWORD') || '',
-        database: process.env.DB_DATABASE || configService.get('DB_DATABASE') || 'app',
+        database:
+          process.env.DB_DATABASE ||
+          configService.get('DB_DATABASE') ||
+          'glpv-agenda-mutirao-mamografia',
         entities: ALL_ENTITIES,
         synchronize: false,
         logging: configService.get('NODE_ENV') !== 'production',

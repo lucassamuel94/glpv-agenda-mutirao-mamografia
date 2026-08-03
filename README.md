@@ -81,7 +81,7 @@ DB_HOST=localhost
 DB_PORT=5432
 DB_USERNAME=app
 DB_PASSWORD=app
-DB_DATABASE=app
+DB_DATABASE=glpv-agenda-mutirao-mamografia
 REDIS_HOST=localhost
 REDIS_PORT=6379
 NODE_ENV=development
@@ -412,6 +412,39 @@ Verifique se o banco contém uma organização e se `GET /api/auth/setup-status`
 ### O banco foi recriado acidentalmente
 
 `db:recreate` é destrutivo e não possui rollback de dados. Em desenvolvimento, recrie o schema e execute o setup/seed novamente. Em produção, use backup e procedimento de recuperação do provedor.
+
+## Mutirão de Mamografia 2026
+
+Feature de domínio sobre este template. Referências: `_docs/plano-de-implementacao.md` (arquitetura e fases) e `_docs/regras-de-negocio-mutirao-mamografia-2026-v2.0.md` (RN-01 a RN-67).
+
+### Fuso horário (RN-60)
+
+`slot.slot_at`, `offer.expires_at`, `appointment.created_at`/`canceled_at` etc. são `timestamp without time zone` — o número gravado é sempre o horário de parede em `America/Sao_Paulo`, nunca UTC. A API roda com `TZ=UTC` (ver topo de `apps/api/src/main.ts`), mas isso não converte esses campos: nenhuma camada (API, banco, painel, mensagens do bot) faz conversão de fuso neles. Ao ler ou escrever um desses campos, trate o valor como texto de parede, não como instante — formatar com `new Date(...).toISOString()`/`toLocaleString()` aplicaria fuso e produziria um horário errado.
+
+### Integração EZ Chat (RN-55)
+
+Rotas `/bot/*` autenticam por `EZ_CHAT_API_KEY` (header `x-api-key`), não por JWT. Como é implantação de tenant único, `MUTIRAO_ORGANIZATION_ID` substitui o tenant que normalmente viria do token — sem as duas variáveis configuradas (ver `apps/api/.env.example`), as rotas do bot recusam a chamada.
+
+### Checklist antes de publicar a agenda definitiva (§5 das regras de negócio)
+
+Nenhuma destas pendências bloqueia o desenvolvimento das regras gerais — todas já têm código pronto contra dados sintéticos. Bloqueiam a publicação da agenda real:
+
+1. Definir qual clínica, entre Pro-Imagem e IME, terá 1.000 vagas e qual terá 500.
+2. Receber e validar as grades de horários da Pro-Imagem e do IME.
+3. Receber a grade revisada da Radioclínica com 500 vagas válidas em dias úteis, até 30/10/2026 (a atual tem 62 sábados fora da janela — `scripts/load-slots.ts` reprova em dry-run).
+4. Aprovar antecedência, quantidade de tentativas e horários dos lembretes no EZ Chat.
+5. Aprovar o texto final das mensagens de confirmação, cancelamento e lista de espera — o único texto com valor no código hoje é a pergunta de dupla confirmação de ausência (`apps/api/src/common/templates/absence-confirmation.template.ts`), copiada do §3.7 das regras como default.
+
+### Limitações aceitas, sem código (RN-63, 65, 66, 67)
+
+- **RN-63** — mamografia nos últimos 12 meses é autodeclarada, sem validação externa.
+- **RN-65** — a fila humana após 3 recusas disputa as mesmas vagas; perto da lotação pode não sobrar horário.
+- **RN-66** — homônimas com mesma data de nascimento não são desambiguadas automaticamente; `PatientRepository.findByNormalizedNameAndBirthDate`/`.search()` devolvem o primeiro/todos os achados, tratamento manual fica para quem opera o painel.
+- **RN-67** — variação de digitação do nome pode gerar cadastro duplicado não detectado; mitigação é a busca do painel + auditoria, não deduplicação automática.
+
+### Testes de integração pendentes
+
+`test/integration/` (RLS, unicidade sob concorrência, transação multi-tabela) não foi escrito nesta rodada — o ambiente de desenvolvimento usado não tinha Postgres disponível para rodar contra banco real. Os critérios de aceite do §6 das regras de negócio (oferta/reserva/expiração/confirmação/cancelamento sob concorrência e idempotência) hoje só têm cobertura via specs unitários com repositórios mockados (`apps/api/src/modules/scheduling/*.spec.ts`), que provam a lógica mas não o comportamento real das constraints do Postgres. Rodar `pnpm --filter api test:integration` contra um banco real antes de publicar.
 
 ## Licença
 

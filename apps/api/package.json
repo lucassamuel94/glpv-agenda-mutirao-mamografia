@@ -23,6 +23,8 @@
     "test:cov": "TZ=UTC jest --coverage",
     "test:debug": "TZ=UTC node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "seed:admin": "TZ=UTC ts-node --transpile-only scripts/seed-admin.ts",
+    "seed:clinics": "TZ=UTC ts-node --transpile-only scripts/seed-clinics.ts",
+    "load:slots": "TZ=UTC ts-node --transpile-only scripts/load-slots.ts",
     "db:recreate": "TZ=UTC ts-node --transpile-only scripts/recreate-dev-db.ts",
     "db:rls:apply": "TZ=UTC ts-node --transpile-only scripts/apply-rls-only.ts",
     "db:migrate:platform-tenant": "TZ=UTC ts-node --transpile-only scripts/migrate-platform-tenant.ts",
@@ -33,7 +35,7 @@
     "migration:revert": "TZ=UTC ts-node --transpile-only scripts/migration-revert.ts",
     "migration:run:prod": "node scripts/migrate-prod.js",
     "test:integration": "TZ=UTC jest --config jest.integration.json",
-    "db:test-role": "TZ=UTC psql \"postgresql://${DB_USERNAME:-ezcrm}:${DB_PASSWORD:-ezcrmpassword}@${DB_HOST:-localhost}:${DB_PORT:-5432}/${DB_DATABASE:-ezcrm}\" -f src/database/rls/test-role.sql",
+    "db:test-role": "TZ=UTC psql \"postgresql://${DB_USERNAME:-ezcrm}:${DB_PASSWORD:-ezcrmpassword}@${DB_HOST:-localhost}:${DB_PORT:-5432}/${DB_DATABASE:-glpv-agenda-mutirao-mamografia}\" -f src/database/rls/test-role.sql",
     "check": "npm run lint:check && npm run test",
     "check:ci": "npm run lint:strict && npm run test:cov",
     "install:fresh": "npm run db:recreate"

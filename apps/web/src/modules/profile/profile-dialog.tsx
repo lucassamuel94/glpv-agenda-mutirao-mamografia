@@ -41,6 +41,8 @@ import { useAuth } from "@/hooks/use-auth";
 type ProfileTab = "profile" | "links" | "security" | "preferences";
 type InterfaceTheme = "light" | "dark";
 
+export const PROFILE_NAME_CLASS = "text-slate-900 dark:text-white";
+
 const ROLE_LABELS: Record<string, string> = {
   SUPER_ADMIN: "Super Admin",
   SA_MASTER: "Administrador da plataforma",
@@ -348,14 +350,16 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
             </div>
             <div className="min-w-0 flex-1 pt-1">
               <div className="flex flex-col gap-0.5 w-max">
-                <h3 className="text-xl font-semibold text-foreground">{formData.name || "Usuário"}</h3>
+                <h3 className={`text-xl font-semibold ${PROFILE_NAME_CLASS}`}>
+                  {formData.name || "Usuário"}
+                </h3>
 
                 <p className="flex items-center gap-1.5 truncate text-sm text-muted-foreground">
                 <Mail size={14} aria-hidden="true" />
                 {formData.email || "E-mail não informado"}
               </p>
 
-                <span className="inline-flex w-fit items-center gap-1 rounded-full bg-primary px-2 py-1 text-xs font-medium text-foreground mt-1">
+                <span className="inline-flex w-fit items-center gap-1 rounded-full bg-primary px-2 py-1 text-xs font-medium text-white mt-1">
                   <ShieldCheck size={13} aria-hidden="true" />
                   {roleLabel}
                 </span>
@@ -415,7 +419,7 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
                       {organization.is_current && <span className="text-xs font-medium text-primary">Atual</span>}
                     </div>
                   )) : (
-                    <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">Nenhuma organização vinculada.</p>
+                    <p className="animate-empty-state-enter rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">Nenhuma organização vinculada.</p>
                   )}
                 </div>
               </Tabs.Content>

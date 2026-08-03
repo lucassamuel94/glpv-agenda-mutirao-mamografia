@@ -26,17 +26,29 @@ export interface LoginResponse {
     role?: string;
     preferences?: UserPreferences;
   };
-  organizations?: Array<{
-    id: string;
-    name: string;
-    is_primary: boolean;
-    is_current?: boolean;
-    role?: string;
-    plan?: string;
-    status?: string;
-    primaryColor?: string;
-    logoUrl?: string;
-  }>;
+  organizations?: OrganizationSummary[];
+}
+
+/**
+ * Organização como aparece nas listas de /auth/login e /auth/check. Um tipo só
+ * para os dois: eram blocos inline duplicados, e campo novo (favicon, density,
+ * theme) entrava em um e esquecia o outro.
+ */
+export interface OrganizationSummary {
+  id: string;
+  name: string;
+  is_primary: boolean;
+  is_current?: boolean;
+  role?: string;
+  plan?: string;
+  /** ACTIVATION = em ativação; ACTIVE = ativa; SUSPENDED/CANCELLED = inativa */
+  status?: string;
+  primaryColor?: string;
+  logoUrl?: string;
+  faviconUrl?: string;
+  /** Defaults de white label da organização; preferência do usuário sobrepõe. */
+  density?: "compact" | "comfortable" | "spacious";
+  theme?: "light" | "dark" | "system";
 }
 
 /** Organização (tenant) retornada por GET /auth/me */
@@ -72,18 +84,7 @@ export interface AuthProfileResponse {
     role?: string;
     preferences?: UserPreferences;
   };
-  organizations: Array<{
-    id: string;
-    name: string;
-    is_primary: boolean;
-    is_current?: boolean;
-    role?: string;
-    plan?: string;
-    /** ACTIVATION = em ativação; ACTIVE = ativa; SUSPENDED/CANCELLED = inativa */
-    status?: string;
-    primaryColor?: string;
-    logoUrl?: string;
-  }>;
+  organizations: OrganizationSummary[];
 }
 
 /** Resposta de GET /auth/branding (público, whitelabel pré-login) */
@@ -92,4 +93,6 @@ export interface PublicBrandingResponse {
   primaryColor?: string;
   logoUrl?: string;
   faviconUrl?: string;
+  density?: "compact" | "comfortable" | "spacious";
+  theme?: "light" | "dark" | "system";
 }

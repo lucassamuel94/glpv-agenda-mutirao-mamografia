@@ -6,6 +6,18 @@ export { Plan, PlanLimits, PlanLimitsKey } from './plan.entity';
 export { Organization, OrganizationStatus, PLATFORM_TENANT_ID } from './organization.entity';
 export { OrganizationUser } from './organization-user.entity';
 export { AuditLog } from './audit-log.entity';
+export { Clinic } from './clinic.entity';
+export { Slot, SlotStatus } from './slot.entity';
+export { Patient } from './patient.entity';
+export { Offer, OfferOutcome } from './offer.entity';
+export {
+  Appointment,
+  AppointmentChannel,
+  AppointmentStatus,
+  CancellationReason,
+} from './appointment.entity';
+export { WaitingListEntry } from './waiting-list-entry.entity';
+export { IdempotencyRecord } from './idempotency-record.entity';
 
 // ============================================
 // Fonte única da lista de entities
@@ -16,6 +28,13 @@ import { Plan } from './plan.entity';
 import { Organization } from './organization.entity';
 import { OrganizationUser } from './organization-user.entity';
 import { AuditLog } from './audit-log.entity';
+import { Clinic } from './clinic.entity';
+import { Slot } from './slot.entity';
+import { Patient } from './patient.entity';
+import { Offer } from './offer.entity';
+import { Appointment } from './appointment.entity';
+import { WaitingListEntry } from './waiting-list-entry.entity';
+import { IdempotencyRecord } from './idempotency-record.entity';
 
 /**
  * Toda entity do app, em UM lugar. Quem precisa da lista consome daqui:
@@ -40,4 +59,17 @@ import { AuditLog } from './audit-log.entity';
 export type EntityClass = new (...args: never[]) => object;
 
 // Array mutável (não `as const`): `TypeOrmModule.forFeature` exige mutável.
-export const ALL_ENTITIES: EntityClass[] = [User, Plan, Organization, OrganizationUser, AuditLog];
+export const ALL_ENTITIES: EntityClass[] = [
+  User,
+  Plan,
+  Organization,
+  OrganizationUser,
+  AuditLog,
+  Clinic,
+  Slot,
+  Patient,
+  Offer,
+  Appointment,
+  WaitingListEntry,
+  IdempotencyRecord,
+];

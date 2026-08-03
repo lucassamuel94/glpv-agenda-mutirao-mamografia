@@ -50,6 +50,9 @@ export const API_CONFIG = {
       RATINGS: "ratings",
       REPORTS: "reports",
       SA_ORGANIZATIONS: "sa-organizations",
+      WAITING_LIST: "waiting-list",
+      AGENDA_SLOTS: "agenda-slots",
+      PATIENT_HISTORY: "patient-history",
     },
   },
 

@@ -4,7 +4,7 @@
  * mesma sidebar era a queixa original de confusão.
  */
 import { describe, expect, it } from "vitest";
-import { buildMenuGroups, getWorld } from "./sidebar-menu";
+import { buildMenuGroups, buildBottomItems, getWorld } from "./sidebar-menu";
 
 describe("getWorld", () => {
   it("rotas /super-admin/* são o mundo console", () => {
@@ -40,7 +40,7 @@ describe("buildMenuGroups", () => {
 
   it("crm NÃO contém a seção Plataforma nem os guias", () => {
     const groups = buildMenuGroups("crm");
-    expect(groups.map((g) => g.title)).toEqual(["Geral"]);
+    expect(groups.map((g) => g.title)).toEqual(["Geral", "Mutirão"]);
     const paths = groups.flatMap((g) => g.items.map((i) => i.path));
     expect(paths.some((p) => p?.startsWith("/super-admin"))).toBe(false);
     expect(
@@ -55,7 +55,27 @@ describe("buildMenuGroups", () => {
     expect(geral.items.map((i) => [i.path, i.resource])).toEqual([
       ["/", "dashboard"],
       ["/reports", "reports"],
+    ]);
+  });
+
+  it("crm expõe Equipe como bottom item (separado dos grupos principais)", () => {
+    const bottom = buildBottomItems("crm");
+    expect(bottom.map((i) => [i.path, i.resource])).toEqual([
       ["/team", "settings"],
+    ]);
+  });
+
+  it("console não tem bottom items", () => {
+    expect(buildBottomItems("console")).toEqual([]);
+  });
+
+  it("crm expõe a seção Mutirão com agenda, pacientes e lista de espera", () => {
+    const mutirao = buildMenuGroups("crm").find((g) => g.title === "Mutirão")!;
+    expect(mutirao.items.map((i) => [i.path, i.resource])).toEqual([
+      ["/agenda", "agenda"],
+      ["/pacientes", "pacientes"],
+      ["/lista-espera", "lista-espera"],
+      ["/clinics", "superadmin"],
     ]);
   });
 });

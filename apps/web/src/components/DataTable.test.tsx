@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { DataTable } from "./DataTable";
+import { AuthContext } from "@/hooks/use-auth";
 
 describe("DataTable", () => {
   it("expõe rótulos e estrutura compacta quando configurada para empilhar", () => {
@@ -61,5 +62,45 @@ describe("DataTable", () => {
     expect(columnHeader).toHaveAttribute("aria-sort", "ascending");
     fireEvent.click(sortButton);
     expect(onSort).toHaveBeenCalledWith("name", "DESC");
+  });
+});
+
+describe("DataTable — densidade da organização", () => {
+  const renderCell = (ui?: { density?: "compact" | "comfortable" | "spacious" }) => (
+    <DataTable.Root density={ui?.density}>
+      <DataTable.Body>
+        <DataTable.Row>
+          <DataTable.Cell>Ada Lovelace</DataTable.Cell>
+        </DataTable.Row>
+      </DataTable.Body>
+    </DataTable.Root>
+  );
+
+  const withTenant = (density?: "compact" | "comfortable" | "spacious") =>
+    ({
+      orgBranding: density ? { density } : null,
+    }) as never;
+
+  it("usa comfortable sem AuthProvider (Storybook/testes)", () => {
+    render(renderCell());
+    expect(screen.getByText("Ada Lovelace")).toHaveClass("px-4", "py-3");
+  });
+
+  it("herda a densidade da organização atual", () => {
+    render(
+      <AuthContext.Provider value={withTenant("spacious")}>
+        {renderCell()}
+      </AuthContext.Provider>,
+    );
+    expect(screen.getByText("Ada Lovelace")).toHaveClass("px-6", "py-4");
+  });
+
+  it("prop explícita vence a densidade da organização", () => {
+    render(
+      <AuthContext.Provider value={withTenant("spacious")}>
+        {renderCell({ density: "compact" })}
+      </AuthContext.Provider>,
+    );
+    expect(screen.getByText("Ada Lovelace")).toHaveClass("px-3", "py-3");
   });
 });

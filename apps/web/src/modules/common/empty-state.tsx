@@ -100,6 +100,8 @@ export interface EmptyStateProps {
   };
   /** Reduz padding e ícone para uso em áreas menores (ex.: dentro de cards, command palette) */
   compact?: boolean;
+  /** Desabilita a entrada animada para resultados vazios de busca/filtros. */
+  animate?: boolean;
   className?: string;
   variant?: CardProps["variant"];
 }
@@ -110,6 +112,7 @@ export function EmptyState({
   description,
   action,
   compact = false,
+  animate = true,
   className,
   variant = "default",
 }: EmptyStateProps) {
@@ -119,7 +122,12 @@ export function EmptyState({
   return (
     <Card
       variant={variant}
-      className={cn("text-center", compact ? "py-8 px-4" : "p-16", className)}
+      className={cn(
+        "text-center",
+        compact ? "py-8 px-4" : "p-16",
+        animate && "animate-empty-state-enter",
+        className,
+      )}
     >
       {Icon && (
         <div

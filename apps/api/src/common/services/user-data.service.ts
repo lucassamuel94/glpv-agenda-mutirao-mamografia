@@ -24,6 +24,10 @@ export interface UserProfile {
     status?: string;
     primaryColor?: string;
     logoUrl?: string;
+    faviconUrl?: string;
+    /** Defaults de white label da organização; a preferência do usuário sobrepõe. */
+    density?: string;
+    theme?: string;
   }>;
 }
 
@@ -58,6 +62,11 @@ export class UserDataService {
 
     // Super Admin: retorna todas as organizações do sistema para poder trocar para qualquer uma
     if (user.is_super_admin) {
+      // A organização SYSTEM ("Platform") CONTINUA na lista de propósito: é o
+      // contexto em que o Super Admin aterrissa (ver auth.service.ts, spec do
+      // Console) e o seletor precisa mostrar onde ele está. Ela não tem white
+      // label — quem cobre isso é o branding público no front, não a omissão
+      // dela aqui.
       const allOrganizations = await this.organizationRepository.findAllWithPlan();
       const organizations = allOrganizations.map((c, index) => ({
         id: c.id,
@@ -68,6 +77,9 @@ export class UserDataService {
         status: (c as any).status ?? undefined,
         primaryColor: c.white_label_settings?.primary_color,
         logoUrl: c.white_label_settings?.logo_url,
+        faviconUrl: c.white_label_settings?.favicon_url,
+        density: c.white_label_settings?.density,
+        theme: c.white_label_settings?.theme,
       }));
       return {
         id: user.id,
@@ -137,6 +149,9 @@ export class UserDataService {
         status: (ou.organization as any).status ?? undefined,
         primaryColor: ou.organization.white_label_settings?.primary_color,
         logoUrl: ou.organization.white_label_settings?.logo_url,
+        faviconUrl: ou.organization.white_label_settings?.favicon_url,
+        density: ou.organization.white_label_settings?.density,
+        theme: ou.organization.white_label_settings?.theme,
       })),
     };
 
@@ -286,6 +301,9 @@ export class UserDataService {
         status: org.status,
         primaryColor: org.primaryColor,
         logoUrl: org.logoUrl,
+        faviconUrl: org.faviconUrl,
+        density: org.density,
+        theme: org.theme,
       })),
     };
 

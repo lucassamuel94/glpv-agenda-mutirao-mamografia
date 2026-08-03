@@ -8,6 +8,7 @@ import { ConfigModule } from '@nestjs/config';
 //default auth controllers
 
 import { AuthService, AuthController, JwtStrategy, JwtAuthWithContextGuard } from './index';
+import { ApiKeyGuard } from './guards/api-key.guard';
 import { PlansSeedService } from './plans-seed.service';
 //repos
 import { UserRepository } from '../repositories/user.repository';
@@ -62,6 +63,7 @@ import { Plan } from '../entities/plan.entity';
     UserDataService,
     JwtStrategy,
     JwtAuthWithContextGuard,
+    ApiKeyGuard,
   ],
   // Exporta UserRepository, SecurityHashService, CacheService e LoggerService
   // além do guard, porque quando módulos consumidores (health, reports, users,
@@ -79,6 +81,7 @@ import { Plan } from '../entities/plan.entity';
     AuthService,
     JwtModule,
     JwtAuthWithContextGuard,
+    ApiKeyGuard,
     UserRepository,
     SecurityHashService,
     CacheService,

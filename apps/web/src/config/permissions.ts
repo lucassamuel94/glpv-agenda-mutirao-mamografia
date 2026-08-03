@@ -1,4 +1,13 @@
-export type Resource = "*" | "dashboard" | "reports" | "settings" | "superadmin";
+export type Resource =
+  | "*"
+  | "dashboard"
+  | "reports"
+  | "settings"
+  | "superadmin"
+  | "agenda"
+  | "pacientes"
+  | "lista-espera"
+  | "mutirao-dashboard";
 
 /**
  * Mapa role → recursos de UI (menu e rotas).
@@ -20,5 +29,8 @@ export const PERMISSIONS: Record<string, Resource[]> = {
   ADMIN: ["*"],
   MANAGER: ["dashboard", "reports", "settings"],
   COORDINATOR: ["dashboard", "reports"],
-  USER: ["dashboard", "reports"],
+  // RN-53: ATENDENTE (role USER) acessa grade, busca de pacientes,
+  // agendamento manual, cancelamento e lista de espera — não o dashboard/
+  // relatório do mutirão, que é RN-54 (só ADM, já coberto pelo "*" acima).
+  USER: ["dashboard", "reports", "agenda", "pacientes", "lista-espera"],
 };

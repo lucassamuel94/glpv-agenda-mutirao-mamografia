@@ -25,13 +25,13 @@ services:
       # renomeia por SQL (`ALTER ROLE ... RENAME TO ...`).
       POSTGRES_USER: ${DB_USERNAME:-app}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-app}
-      POSTGRES_DB: ${DB_DATABASE:-app}
+      POSTGRES_DB: ${DB_DATABASE:-glpv-agenda-mutirao-mamografia}
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-app} -d ${DB_DATABASE:-app}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-app} -d ${DB_DATABASE:-glpv-agenda-mutirao-mamografia}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -41,7 +41,7 @@ services:
     container_name: ${COMPOSE_PROJECT_NAME:-app}_redis
     restart: always
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s

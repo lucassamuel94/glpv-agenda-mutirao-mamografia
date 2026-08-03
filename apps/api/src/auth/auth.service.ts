@@ -175,6 +175,9 @@ export class AuthService {
         status: (c as any).status ?? undefined,
         primaryColor: c.white_label_settings?.primary_color,
         logoUrl: c.white_label_settings?.logo_url,
+        faviconUrl: c.white_label_settings?.favicon_url,
+        density: c.white_label_settings?.density,
+        theme: c.white_label_settings?.theme,
       }));
 
       return {
@@ -464,7 +467,8 @@ export class AuthService {
    */
   async getSetupRequired(): Promise<boolean> {
     const organizations = await this.organizationRepository.findAll();
-    return organizations.length === 0;
+    // Platform (SYSTEM) doesn't count — setup is needed until an operational org exists
+    return organizations.filter((o) => o.status !== 'SYSTEM').length === 0;
   }
 
   /**
@@ -479,6 +483,8 @@ export class AuthService {
     primaryColor?: string;
     logoUrl?: string;
     faviconUrl?: string;
+    density?: string;
+    theme?: string;
   }> {
     const organizations = await this.organizationRepository.findAll();
     const organization = organizations.find((o) => o.status !== OrganizationStatus.SYSTEM);
@@ -489,6 +495,10 @@ export class AuthService {
       primaryColor: organization.white_label_settings?.primary_color,
       logoUrl: organization.white_label_settings?.logo_url,
       faviconUrl: organization.white_label_settings?.favicon_url,
+      // Também servem ao Super Admin: o contexto dele é a Platform, que não
+      // tem white label, então é daqui que vêm densidade e tema da instalação.
+      density: organization.white_label_settings?.density,
+      theme: organization.white_label_settings?.theme,
     };
   }
 
@@ -568,8 +578,16 @@ export class AuthService {
     });
 
     await this.organizationRepository.update(organization.id, { created_by: user.id });
-    // Não cria organization_users com a org operacional: SA não fica vinculado à
-    // organização no banco (vínculo só no login).
+
+    // Vincula o SA à organização operacional como ADMIN (is_primary = true)
+    // para que após o login o currentTenant seja a org que ele acabou de criar.
+    await this.organizationUserRepository.create({
+      user_id: user.id,
+      organization_id: organization.id,
+      role: 'ADMIN',
+      is_primary: true,
+      is_active: true,
+    } as Partial<OrganizationUser>);
 
     // Cria a Platform tenant (SYSTEM) e vincula o SA — mesma estrutura do
     // seed-admin.ts. Sem isso, fluxos administrativos que dependem da Platform

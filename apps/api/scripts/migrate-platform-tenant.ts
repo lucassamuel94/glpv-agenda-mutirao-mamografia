@@ -43,7 +43,7 @@ async function main() {
     port: parseInt(process.env.DB_PORT || '5432'),
     username: process.env.DB_USERNAME || 'postgres',
     password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_DATABASE || 'ezcrm',
+    database: process.env.DB_DATABASE || 'glpv-agenda-mutirao-mamografia',
     entities: [...ALL_ENTITIES],
     synchronize: false,
     logging: false,

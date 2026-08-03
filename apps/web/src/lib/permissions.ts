@@ -19,6 +19,10 @@ export const PERMISSIONS = {
   USERS: "users",
   SETTINGS: "settings",
   REPORTS: "reports",
+  MUTIRAO_DASHBOARD: "mutirao-dashboard",
+  AGENDA: "agenda",
+  PACIENTES: "pacientes",
+  LISTA_ESPERA: "lista-espera",
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -28,23 +32,42 @@ export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
  * como acesso total em `can()` (mesma semântica de isSa() no use-auth).
  */
 const ROLE_PERMISSIONS: Record<string, readonly string[]> = {
-  ADMIN: [PERMISSIONS.ADMIN, PERMISSIONS.USERS, PERMISSIONS.SETTINGS, PERMISSIONS.REPORTS],
+  ADMIN: [
+    PERMISSIONS.ADMIN,
+    PERMISSIONS.USERS,
+    PERMISSIONS.SETTINGS,
+    PERMISSIONS.REPORTS,
+    PERMISSIONS.MUTIRAO_DASHBOARD,
+    PERMISSIONS.AGENDA,
+    PERMISSIONS.PACIENTES,
+    PERMISSIONS.LISTA_ESPERA,
+  ],
   MANAGER: [PERMISSIONS.USERS, PERMISSIONS.REPORTS],
   COORDINATOR: [PERMISSIONS.REPORTS],
-  USER: [],
+  // RN-53: ATENDENTE (USER) opera a agenda, busca pacientes e a lista de
+  // espera, mas não o dashboard/relatório do mutirão (RN-54, só ADM).
+  USER: [PERMISSIONS.AGENDA, PERMISSIONS.PACIENTES, PERMISSIONS.LISTA_ESPERA],
 };
 
 /**
  * Roles Super Admin — fonte única. `can()` e `isSa()`/`isAdmin()` do
  * use-auth derivam daqui; nunca duplicar esta lista inline.
  */
-export const SA_ROLES: readonly UserRole[] = ["SUPER_ADMIN", "SA_MASTER", "SA_BILLING", "SA_USER"];
+export const SA_ROLES: readonly UserRole[] = [
+  "SUPER_ADMIN",
+  "SA_MASTER",
+  "SA_BILLING",
+  "SA_USER",
+];
 
 /**
  * Função pura de decisão: role possui ao menos uma das permissões (OR)?
  * `required` vazio = sempre permitido (gate sem exigência).
  */
-export function can(role: UserRole | null | undefined, required: string[]): boolean {
+export function can(
+  role: UserRole | null | undefined,
+  required: string[],
+): boolean {
   if (required.length === 0) return true;
   if (!role) return false;
   if (SA_ROLES.includes(role)) return true;

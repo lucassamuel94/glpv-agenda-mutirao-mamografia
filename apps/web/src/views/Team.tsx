@@ -334,6 +334,7 @@ export default function TeamPage() {
                       onClick: () => setInviteOpen(true),
                     }
               }
+              animate={activeFiltersCount === 0}
               className="rounded-none border-0 bg-transparent shadow-none"
             />
           ) : (

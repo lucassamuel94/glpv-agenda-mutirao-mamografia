@@ -55,18 +55,21 @@ describe('instalação do zero → sistema em estado "setup obrigatório"', () =
     await expect(service.getSetupRequired()).resolves.toBe(true);
   });
 
-  it('uma organização já existente basta para o setup não ser mais oferecido', async () => {
-    // É o motivo pelo qual a instalação não pode semear NADA em `organizations`
-    // — inclusive a Platform tenant, que o próprio `runSetup` cria depois.
-    const { service } = buildService([{ id: 'qualquer-organizacao' }]);
+  it('uma organização operacional já existente basta para o setup não ser mais oferecido', async () => {
+    const { service } = buildService([{ id: 'qualquer-organizacao', status: 'ACTIVE' }]);
     await expect(service.getSetupRequired()).resolves.toBe(false);
+  });
+
+  it('apenas a Platform (SYSTEM) não satisfaz o setup — exige org operacional', async () => {
+    const { service } = buildService([{ id: 'platform', status: 'SYSTEM' }]);
+    await expect(service.getSetupRequired()).resolves.toBe(true);
   });
 
   it('setup num sistema já configurado é recusado ANTES de criar qualquer coisa', async () => {
     // Sem esta guarda, `POST /auth/setup` é uma rota pública que cria um
     // usuário SA_MASTER — acesso total — em qualquer instalação viva.
     const { service, organizationRepository, userRepository, planRepository } = buildService([
-      { id: 'organizacao-existente' },
+      { id: 'organizacao-existente', status: 'ACTIVE' },
     ]);
 
     await expect(

@@ -73,3 +73,22 @@ if (!(globalThis as Record<string, unknown>).ResizeObserver) {
     disconnect() {}
   };
 }
+
+/**
+ * `matchMedia` — o jsdom não implementa. O ThemeProvider consulta
+ * `prefers-color-scheme` no mount e registra um listener; sem o stub, qualquer
+ * teste que monte o provider quebra com "window.matchMedia is not a function",
+ * outro erro de AMBIENTE. Padrão: nunca casa (tema claro), listeners no-op.
+ */
+if (typeof window !== "undefined" && !window.matchMedia) {
+  window.matchMedia = ((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  })) as typeof window.matchMedia;
+}

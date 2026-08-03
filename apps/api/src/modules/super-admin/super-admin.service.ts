@@ -22,6 +22,9 @@ import * as bcrypt from 'bcrypt';
 import { Organization, OrganizationStatus } from '../../entities/organization.entity';
 import { PaginatedResponse } from '../../common/interfaces/paginated-response.interface';
 import { WebsocketService, WsSendMessageParams } from '../websocket';
+import { ClinicRepository } from '../../repositories/clinic.repository';
+import { CreateClinicDto } from './dto/create-clinic.dto';
+import { UpdateClinicDto } from './dto/update-clinic.dto';
 
 export interface OrganizationStatsItem {
   id: string;
@@ -58,7 +61,8 @@ export class SuperAdminService {
     private planRepository: PlanRepository,
     private securityHashService: SecurityHashService,
     private logger: LoggerService,
-    private websocketService: WebsocketService
+    private websocketService: WebsocketService,
+    private clinicRepository: ClinicRepository
   ) {
     this.logger.setContext('SuperAdminService');
   }
@@ -238,6 +242,85 @@ export class SuperAdminService {
       cnpj: organization.cnpj,
       status: organization.status,
     };
+  }
+
+  async createClinic(
+    dto: CreateClinicDto
+  ): Promise<{ id: string; name: string; organizationId: string }> {
+    const organization = await this.organizationRepository.findById(dto.organizationId);
+    if (!organization || organization.name !== 'Grupo Luta Pela Vida') {
+      throw new NotFoundException('Organização Grupo Luta Pela Vida não encontrada.');
+    }
+    const name = dto.name.trim();
+    if (await this.clinicRepository.findByOrganizationAndName(organization.id, name)) {
+      throw new ConflictException('Clínica já cadastrada nesta organização.');
+    }
+    const clinic = await this.clinicRepository.create({
+      organization_id: organization.id,
+      name,
+      capacity: dto.capacity,
+      address: dto.address.trim(),
+      phone: dto.phone?.trim() || null,
+      whatsapp: dto.whatsapp?.trim() || null,
+      active: true,
+    });
+    this.logger.log(`Clinic created by SA: ${clinic.name} (${clinic.id})`);
+    return { id: clinic.id, name: clinic.name, organizationId: clinic.organization_id };
+  }
+
+  async listClinics(organizationId: string) {
+    const organization = await this.organizationRepository.findById(organizationId);
+    if (!organization || organization.name !== 'Grupo Luta Pela Vida') {
+      throw new NotFoundException('Organização Grupo Luta Pela Vida não encontrada.');
+    }
+    return this.clinicRepository.findActiveByOrganization(organization.id);
+  }
+
+  async updateClinic(
+    clinicId: string,
+    dto: UpdateClinicDto
+  ): Promise<{ id: string; name: string; organizationId: string }> {
+    const organization = await this.organizationRepository.findByName('Grupo Luta Pela Vida');
+    if (!organization) {
+      throw new NotFoundException('Organização Grupo Luta Pela Vida não encontrada.');
+    }
+    const clinic = await this.clinicRepository.findByIdAndOrganization(clinicId, organization.id);
+    if (!clinic || !clinic.active) {
+      throw new NotFoundException('Clínica não encontrada.');
+    }
+
+    const name = dto.name?.trim();
+    if (name && name !== clinic.name) {
+      const duplicate = await this.clinicRepository.findByOrganizationAndName(
+        organization.id,
+        name
+      );
+      if (duplicate) throw new ConflictException('Clínica já cadastrada nesta organização.');
+    }
+
+    const updated = await this.clinicRepository.update(clinic, {
+      ...(name ? { name } : {}),
+      ...(dto.capacity !== undefined ? { capacity: dto.capacity } : {}),
+      ...(dto.address !== undefined ? { address: dto.address.trim() } : {}),
+      ...(dto.phone !== undefined ? { phone: dto.phone.trim() || null } : {}),
+      ...(dto.whatsapp !== undefined ? { whatsapp: dto.whatsapp.trim() || null } : {}),
+    });
+    this.logger.log(`Clinic updated by SA: ${updated.name} (${updated.id})`);
+    return { id: updated.id, name: updated.name, organizationId: updated.organization_id };
+  }
+
+  async deleteClinic(clinicId: string): Promise<{ message: string }> {
+    const organization = await this.organizationRepository.findByName('Grupo Luta Pela Vida');
+    if (!organization) {
+      throw new NotFoundException('Organização Grupo Luta Pela Vida não encontrada.');
+    }
+    const clinic = await this.clinicRepository.findByIdAndOrganization(clinicId, organization.id);
+    if (!clinic || !clinic.active) {
+      throw new NotFoundException('Clínica não encontrada.');
+    }
+    await this.clinicRepository.deactivate(clinic);
+    this.logger.log(`Clinic deactivated by SA: ${clinic.name} (${clinic.id})`);
+    return { message: 'Clínica removida com sucesso.' };
   }
 
   /**

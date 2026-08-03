@@ -1,4 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
+import * as dotenv from 'dotenv';
+import * as path from 'path';
 import * as pg from 'pg';
 
 /**
@@ -12,7 +14,13 @@ export class DatabaseInitService {
   private static readonly logger = new Logger(DatabaseInitService.name);
 
   static async ensureDatabaseFromEnv(): Promise<void> {
-    const dbName = process.env.DB_DATABASE || 'app';
+    // Este método roda antes de NestFactory.create(), portanto antes do
+    // ConfigModule. Carregue os arquivos aqui para que a primeira conexão já
+    // use as mesmas credenciais do restante da aplicação.
+    dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+    dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+
+    const dbName = process.env.DB_DATABASE || 'glpv-agenda-mutirao-mamografia';
     const dbHost = process.env.DB_HOST || 'localhost';
     const dbPort = parseInt(process.env.DB_PORT || '5432', 10);
     const dbUsername = process.env.DB_USERNAME || 'postgres';

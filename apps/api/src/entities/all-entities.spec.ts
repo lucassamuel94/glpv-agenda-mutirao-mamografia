@@ -68,4 +68,20 @@ describe('ALL_ENTITIES', () => {
     expect(names).toContain('OrganizationUser');
     expect(names).toContain('AuditLog');
   });
+
+  it('registers every mutirao domain entity', () => {
+    const names = ALL_ENTITIES.map((entity) => entity.name);
+
+    expect(names).toEqual(
+      expect.arrayContaining([
+        'Clinic',
+        'Slot',
+        'Patient',
+        'Offer',
+        'Appointment',
+        'WaitingListEntry',
+        'IdempotencyRecord',
+      ])
+    );
+  });
 });

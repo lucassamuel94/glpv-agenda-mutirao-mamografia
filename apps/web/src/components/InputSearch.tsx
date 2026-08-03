@@ -62,11 +62,19 @@ export default function InputSearch({
     onChange?.(e);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      onSearch?.(searchValue || "");
+    }
+  };
+
   const sharedProps = {
     name,
     placeholder,
     value: searchValue,
     onChange: handleChange,
+    onKeyDown: handleKeyDown,
     icon: <Search size={18} />,
     className: inputClassName,
     iconPosition: "start" as const,

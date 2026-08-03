@@ -4,6 +4,7 @@
  */
 
 import { ApiService, type ApiResponse } from "./base";
+import type { Clinic } from "./clinics";
 
 export interface OrganizationStatsItem {
   id: string;
@@ -51,6 +52,15 @@ export interface CreateOrganizationPayload {
   cnpj: string;
   address?: string;
   status?: string;
+}
+
+export interface CreateClinicPayload {
+  organizationId: string;
+  name: string;
+  capacity: number;
+  address: string;
+  phone?: string;
+  whatsapp?: string;
 }
 
 export interface UpdateOrganizationPayload {
@@ -128,6 +138,31 @@ export class SuperAdminApiService extends ApiService {
       "/super-admin/organizations",
       payload,
     );
+  }
+
+  async createClinic(payload: CreateClinicPayload): Promise<ApiResponse<{ id: string; name: string; organizationId: string }>> {
+    return this.post<{ id: string; name: string; organizationId: string }>(
+      "/super-admin/clinics",
+      payload,
+    );
+  }
+
+  async listClinics(organizationId: string): Promise<ApiResponse<Clinic[]>> {
+    return this.get<Clinic[]>(`/super-admin/clinics?organizationId=${encodeURIComponent(organizationId)}`);
+  }
+
+  async updateClinic(
+    clinicId: string,
+    payload: Partial<CreateClinicPayload>,
+  ): Promise<ApiResponse<{ id: string; name: string; organizationId: string }>> {
+    return this.patch<{ id: string; name: string; organizationId: string }>(
+      `/super-admin/clinics/${clinicId}`,
+      payload,
+    );
+  }
+
+  async deleteClinic(clinicId: string): Promise<ApiResponse<{ message: string }>> {
+    return this.delete<{ message: string }>(`/super-admin/clinics/${clinicId}`);
   }
 
   async getOrganization(

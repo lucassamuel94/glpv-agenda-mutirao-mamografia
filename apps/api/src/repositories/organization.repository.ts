@@ -54,6 +54,10 @@ export class OrganizationRepository extends BaseRepository<Organization> {
     });
   }
 
+  async findByName(name: string): Promise<Organization | null> {
+    return this.repository.findOne({ where: { name } });
+  }
+
   /**
    * Busca organização por alias
    */

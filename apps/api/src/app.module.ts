@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_INTERCEPTOR, APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 
 // Modules
@@ -18,6 +19,12 @@ import { WebsocketModule } from './modules/websocket';
 import { SuperAdminModule } from './modules/super-admin/super-admin.module';
 
 import { QuotaModule } from './common/modules/quota.module';
+import { WaitingListModule } from './modules/waiting-list/waiting-list.module';
+import { MutiraoDashboardModule } from './modules/mutirao-dashboard/mutirao-dashboard.module';
+import { SchedulingModule } from './modules/scheduling/scheduling.module';
+import { PatientsModule } from './modules/patients/patients.module';
+import { BotModule } from './modules/bot/bot.module';
+import { ClinicsModule } from './modules/clinics/clinics.module';
 
 // Interceptors
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
@@ -43,6 +50,7 @@ import { ClsContextModule, AuditModule, AuditInterceptor } from './common';
     // setup) sobrescrevem com limite mais apertado via @Throttle no
     // controller — ver auth.controller.ts.
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 60 }]),
+    ScheduleModule.forRoot(),
 
     AuthModule,
     ClsContextModule,
@@ -55,6 +63,12 @@ import { ClsContextModule, AuditModule, AuditInterceptor } from './common';
     ReportsModule,
     WebsocketModule,
     SuperAdminModule,
+    WaitingListModule,
+    MutiraoDashboardModule,
+    SchedulingModule,
+    PatientsModule,
+    BotModule,
+    ClinicsModule,
 
     HealthModule,
   ],

@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import { readPolicyTables } from './rls/parse-policy-tables';
 
 /** Erro de segurança fatal — precisa atravessar o catch genérico do boot sem ser engolido. */
 class RlsBypassError extends Error {}
@@ -25,7 +26,7 @@ export class RlsVerifierService implements OnApplicationBootstrap {
    * a lista é a rede de segurança do boot, e uma tabela ausente dela é uma
    * tabela cuja RLS pode ter caído no `synchronize` sem ninguém notar.
    */
-  private readonly tenantScopedTables = ['organization_users', 'audit_logs'];
+  private readonly tenantScopedTables = readPolicyTables();
 
   constructor(@InjectDataSource('master') private readonly dataSource: DataSource) {}
 

@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "predev": "lsof -ti :3000 -ti :3001 | xargs kill -9 2>/dev/null || true",
+    "predev": "lsof -t -i tcp:3000 -i tcp:3001 -sTCP:LISTEN | xargs kill -9 2>/dev/null || true",
     "dev": "turbo run dev --ui=tui",
     "create:project": "node scripts/create-project.mjs",
     "build": "turbo run build",
@@ -13,7 +13,7 @@
     "clean:superpowers": "bash scripts/clean-superpowers-tasks.sh"
   },
   "devDependencies": {
-    "turbo": "^2.5.0"
+    "turbo": "^2.10.8"
   },
   "packageManager": "pnpm@11.14.0",
   "engines": {

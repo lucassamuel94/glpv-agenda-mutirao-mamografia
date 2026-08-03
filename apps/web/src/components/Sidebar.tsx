@@ -22,7 +22,9 @@ import { Avatar } from "@/components/Avatar";
 import { SaOrgBanner } from "@/modules/super-admin/sa-org-banner";
 import {
   buildMenuGroups,
+  buildBottomItems,
   getWorld,
+  type MenuItem,
   type MenuSection,
 } from "@/components/sidebar-menu";
 import { cn } from "@/lib/utils";
@@ -184,6 +186,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed }) => {
   // de acesso real — isto é só reforço de render para não-SA.
   const world = isSa() ? getWorld(pathname) : "crm";
   const menuGroups: MenuSection[] = buildMenuGroups(world);
+  const bottomItems: MenuItem[] = buildBottomItems(world);
 
   // Abre o grupo cujo filho corresponde à rota atual (menu do template é plano;
   // isto ativa quando um projeto-filho agrupa itens via `children`). O setState
@@ -287,10 +290,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed }) => {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-6 overflow-x-hidden overflow-y-auto px-3 py-5">
+        <nav className="flex flex-1 flex-col gap-6 overflow-x-hidden overflow-y-auto px-3 py-5">
           {menuGroups.map((group, groupIdx) => {
             // Filter items in this group based on permissions
             const visibleItems = group.items.filter((item) => {
+              if (item.superAdminOnly && !isSa()) return false;
               if (!can(item.resource)) return false;
               if (item.children?.length) {
                 return item.children.some((c) => can(c.resource));
@@ -513,6 +517,48 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed }) => {
               </div>
             );
           })}
+
+          {/* Bottom items — separados visualmente, empurrados para o fim do nav */}
+          {bottomItems.length > 0 && (
+            <div className="mt-auto space-y-1 border-t border-[hsl(var(--shell-border))] pt-3">
+              {bottomItems
+                .filter((item) => can(item.resource))
+                .map((item) => {
+                  const active = item.path ? isActive(item.path) : false;
+                  const tooltipId = `sidebar-tooltip-bottom-${item.label
+                    .replace(/\s+/g, "-")
+                    .toLowerCase()}`;
+                  return (
+                    <div key={item.path!} className="relative group">
+                      <Button
+                        asChild
+                        variant="ghost"
+                        className={navigationItemClass(active, isCollapsed)}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => handleNavigation(item.path!)}
+                          aria-current={active ? "page" : undefined}
+                          aria-label={isCollapsed ? item.label : undefined}
+                        >
+                          <item.icon size={16} className="flex-shrink-0" />
+                          {!isCollapsed && (
+                            <span className="flex-1 animate-fadeIn">
+                              {item.label}
+                            </span>
+                          )}
+                        </button>
+                      </Button>
+                      {isCollapsed && (
+                        <div id={tooltipId} role="tooltip" className={tooltipClass}>
+                          {item.label}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
+          )}
         </nav>
 
         {/* Footer */}

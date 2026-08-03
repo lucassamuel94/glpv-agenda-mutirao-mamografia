@@ -25,6 +25,19 @@ describe('RlsVerifierService — cobertura da lista de tabelas', () => {
     expect(policyTables).toContain('audit_logs');
   });
 
+  it('includes the mutirao tables in the RLS policy source of truth', () => {
+    expect(policyTables).toEqual(
+      expect.arrayContaining([
+        'clinics',
+        'slots',
+        'patients',
+        'offers',
+        'appointments',
+        'waiting_list_entries',
+      ])
+    );
+  });
+
   it('verifica TODA tabela que recebe policy de tenant no policies.sql', () => {
     const missing = policyTables.filter((t) => !verifiedTables().includes(t));
     expect(missing).toEqual([]);

@@ -11,12 +11,16 @@
  */
 import {
   BarChart3,
+  CalendarDays,
+  ClipboardList,
   FileText,
+  Hospital,
   LayoutDashboard,
   Palette,
   ScrollText,
   Shield,
   UserPlus,
+  Users,
 } from "lucide-react";
 import { Resource } from "@/config/permissions";
 
@@ -27,6 +31,7 @@ export interface MenuItem {
   resource: Resource;
   badge?: number;
   children?: MenuItem[];
+  superAdminOnly?: boolean;
 }
 
 export interface MenuSection {
@@ -76,9 +81,33 @@ const CRM_GROUPS: MenuSection[] = [
         path: "/reports",
         resource: "reports",
       },
-      { icon: UserPlus, label: "Equipe", path: "/team", resource: "settings" },
     ],
   },
+  {
+    title: "Mutirão",
+    items: [
+      { icon: CalendarDays, label: "Agenda", path: "/agenda", resource: "agenda" as Resource },
+      { icon: Users, label: "Pacientes", path: "/pacientes", resource: "pacientes" as Resource },
+      {
+        icon: ClipboardList,
+        label: "Lista de espera",
+        path: "/lista-espera",
+        resource: "lista-espera" as Resource,
+      },
+      {
+        icon: Hospital,
+        label: "Clínicas",
+        path: "/clinics",
+        resource: "superadmin" as Resource,
+        superAdminOnly: true,
+      },
+    ],
+  },
+];
+
+/** Itens que ficam no rodapé do nav, separados dos grupos principais. */
+const CRM_BOTTOM_ITEMS: MenuItem[] = [
+  { icon: UserPlus, label: "Equipe", path: "/team", resource: "settings" },
 ];
 
 const DEV_GUIDE_GROUP: MenuSection = {
@@ -110,4 +139,10 @@ export function buildMenuGroups(
   }
 
   return CRM_GROUPS;
+}
+
+/** Itens isolados exibidos no fundo da sidebar (antes do footer/user menu). */
+export function buildBottomItems(world: SidebarWorld): MenuItem[] {
+  if (world === "console") return [];
+  return CRM_BOTTOM_ITEMS;
 }

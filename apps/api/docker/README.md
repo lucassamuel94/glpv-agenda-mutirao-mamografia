@@ -49,7 +49,7 @@ Estas variáveis devem ser usadas no `backend/.env` (ou copiadas de `backend/env
 | `DB_PORT`     | `5432`          |
 | `DB_USERNAME` | `ezcrm`         |
 | `DB_PASSWORD` | `ezcrmpassword` |
-| `DB_DATABASE` | `ezcrm`     |
+| `DB_DATABASE` | `glpv-agenda-mutirao-mamografia` |
 
 ## Volumes
 

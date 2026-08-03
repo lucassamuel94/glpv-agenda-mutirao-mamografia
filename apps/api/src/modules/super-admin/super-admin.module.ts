@@ -13,13 +13,15 @@ import { OrganizationRepository } from '../../repositories/organization.reposito
 import { OrganizationUserRepository } from '../../repositories/organization-user.repository';
 import { PlanRepository } from '../../repositories/plan.repository';
 import { WebsocketModule } from '../websocket/websocket.module';
+import { Clinic } from '../../entities/clinic.entity';
+import { ClinicRepository } from '../../repositories/clinic.repository';
 
 @Module({
   imports: [
     AuthModule,
     AuditModule,
     WebsocketModule,
-    TypeOrmModule.forFeature([User, Organization, OrganizationUser, Plan], 'master'),
+    TypeOrmModule.forFeature([User, Organization, OrganizationUser, Plan, Clinic], 'master'),
   ],
   controllers: [SuperAdminController, AuditLogController],
   providers: [
@@ -31,6 +33,7 @@ import { WebsocketModule } from '../websocket/websocket.module';
     OrganizationRepository,
     OrganizationUserRepository,
     PlanRepository,
+    ClinicRepository,
   ],
   exports: [SuperAdminService],
 })

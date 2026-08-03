@@ -251,44 +251,46 @@ export function EditOrganizationDialog({
             </UserDialogSection>
             <div className="border-t border-border pt-7">
               <UserDialogSection title="Marca e aparência" description="Defina como a organização será apresentada no sistema.">
-            <ColorPickerField
-              name="primary_color"
-              label="Cor principal"
-              helpTip="Escolha a cor principal da interface"
-            />
-            <div className="grid gap-4 sm:grid-cols-2">
-              <ImageUploadField
-                name="logo_url"
-                label="Logo"
-                helper="Imagem principal da empresa"
-              />
-              <ImageUploadField
-                name="icon_url"
-                label="Ícone / favicon"
-                helper="Imagem quadrada usada também como favicon"
-              />
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Select
-                name="theme"
-                label="Tema padrão"
-                options={[
-                  { value: "light", label: "Claro" },
-                  { value: "dark", label: "Escuro" },
-                  { value: "system", label: "Sistema" },
-                ]}
-              />
-              <Select
-                name="density"
-                label="Densidade da interface"
-                options={[
-                  { value: "compact", label: "Compacta" },
-                  { value: "comfortable", label: "Confortável" },
-                  { value: "spacious", label: "Espaçosa" },
-                ]}
-              />
-            </div>
-            <OrganizationBrandPreview />
+                <div className="space-y-5">
+                  <ColorPickerField
+                    name="primary_color"
+                    label="Cor principal"
+                    helpTip="Escolha a cor principal da interface"
+                  />
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <ImageUploadField
+                      name="logo_url"
+                      label="Logo"
+                      helper="Imagem principal da empresa"
+                    />
+                    <ImageUploadField
+                      name="icon_url"
+                      label="Ícone / favicon"
+                      helper="Imagem quadrada usada também como favicon"
+                    />
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Select
+                      name="theme"
+                      label="Tema padrão"
+                      options={[
+                        { value: "light", label: "Claro" },
+                        { value: "dark", label: "Escuro" },
+                        { value: "system", label: "Sistema" },
+                      ]}
+                    />
+                    <Select
+                      name="density"
+                      label="Densidade da interface"
+                      options={[
+                        { value: "compact", label: "Compacta" },
+                        { value: "comfortable", label: "Confortável" },
+                        { value: "spacious", label: "Espaçosa" },
+                      ]}
+                    />
+                  </div>
+                  <OrganizationBrandPreview />
+                </div>
               </UserDialogSection>
             </div>
             <div className="border-t border-border pt-7">

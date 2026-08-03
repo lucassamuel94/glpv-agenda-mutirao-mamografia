@@ -76,8 +76,9 @@ export const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "1.0.0";
 /** NEXT_PUBLIC_APP_AUTHOR — autor da aplicação */
 export const APP_AUTHOR = process.env.NEXT_PUBLIC_APP_AUTHOR ?? "";
 
-/** NEXT_PUBLIC_APP_TITLE — título da aplicação */
-export const APP_TITLE = `${APP_NAME} | Enterprise Platform`;
+/** Título da aba (fallback quando ainda não há organização — ver
+ *  `generateMetadata` em `app/layout.tsx`). */
+export const APP_TITLE = APP_NAME;
 
 export const ROLE_OPTIONS = [
   { value: UserRole.ADMIN, label: "Administrador" },

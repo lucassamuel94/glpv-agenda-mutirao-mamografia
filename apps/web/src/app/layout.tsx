@@ -7,11 +7,36 @@ import { ThemeProvider } from "@/providers/ThemeProvider";
 import { AuthProvider } from "@/hooks/use-auth";
 import { SocketProvider } from "@/contexts/socket-context";
 import { Toaster } from "sonner";
-import { APP_TITLE, APP_DESCRIPTION } from "@/environments";
-export const metadata: Metadata = {
-  title: APP_TITLE,
-  description: APP_DESCRIPTION,
-};
+import { APP_TITLE, APP_DESCRIPTION, BASE_URL } from "@/environments";
+
+/**
+ * O título vem do nome da organização criada em /setup, não do `.env`: num
+ * template whitelabel o `.env` é preenchido antes de existir cliente, então
+ * `NEXT_PUBLIC_APP_NAME` fica com o nome do projeto e a aba nunca acompanha o
+ * que o usuário digitou no setup. `/auth/branding` é público (mesmo endpoint
+ * que já alimenta cor e logo pré-login) e cai no fallback do `.env` se o
+ * backend estiver fora do ar ou ainda não houver organização.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  let organizationName: string | undefined;
+  try {
+    const response = await fetch(`${BASE_URL}/auth/branding`, {
+      // Revalidação por tempo em vez de no-store: sem isto o layout raiz vira
+      // dinâmico e TODA página do app perde renderização estática.
+      next: { revalidate: 300 },
+    });
+    if (response.ok) {
+      organizationName = (await response.json())?.organizationName;
+    }
+  } catch {
+    // backend fora do ar (dev, build) — fallback do .env abaixo
+  }
+
+  return {
+    title: organizationName ?? APP_TITLE,
+    description: APP_DESCRIPTION,
+  };
+}
 
 export default function RootLayout({
   children,

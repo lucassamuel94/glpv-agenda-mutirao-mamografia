@@ -53,6 +53,16 @@ export class RequestContextService {
   }
 
   /**
+   * Seta o tenant sem um usuário logado — usado por guards de integração
+   * (ex.: `ApiKeyGuard` do EZ Chat) que autenticam por chave, não por JWT,
+   * mas ainda precisam do tenant no CLS para o `TenantContextInterceptor`
+   * abrir a transação com RLS.
+   */
+  setOrganizationId(organizationId: string): void {
+    this.cls.set('organizationId', organizationId);
+  }
+
+  /**
    * Obtém o hash do usuário da requisição atual
    */
   getUserHash(): string | undefined {

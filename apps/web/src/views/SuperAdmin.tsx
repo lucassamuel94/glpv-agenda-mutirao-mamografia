@@ -4,15 +4,12 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/Button";
 import {
-  UserPlus,
-  ChevronDown,
   Edit,
-  UserMinus,
   Trash2,
-  LogIn,
   Plus,
   Building2,
   UsersRound,
+  Hospital,
 } from "lucide-react";
 import { superAdminApi } from "@/lib/api/super-admin";
 import { authApi } from "@/lib/api/auth";
@@ -23,17 +20,16 @@ import { SkeletonFullPage } from "@/modules/common/skeleton";
 import { ErrorMessage } from "@/modules/common/error-message";
 import { CreateSaUserDialog } from "@/modules/super-admin/create-sa-user-dialog";
 import { CreateOrganizationDialog } from "@/modules/super-admin/create-organization-dialog";
+import { CreateClinicDialog } from "@/modules/super-admin/create-clinic-dialog";
 import { EditOrganizationDialog } from "@/modules/super-admin/edit-organization-dialog";
 import { EditSaUserDialog } from "@/modules/super-admin/edit-sa-user-dialog";
 import { Confirm } from "@/components/Dialog";
 import {
-  Dropdown,
-  RowActionsMenu,
   Tabs,
   InputSearch,
   TableSurface,
+  Tooltip,
 } from "@/components";
-import type { RowActionsMenuAction } from "@/components";
 import { useAuth } from "@/hooks/use-auth";
 import { useSaOrganizations } from "@/hooks/use-sa-organizations";
 import Pagination from "@/components/Pagination";
@@ -52,7 +48,11 @@ const STATUS_DOT_CLASSES: Record<string, string> = {
   CANCELLED: "bg-red-500",
 };
 
-export default function SuperAdminPage() {
+export default function SuperAdminPage({
+  initialTab = "organizations",
+}: {
+  initialTab?: "organizations" | "users" | "clinics";
+}) {
   const [stats, setStats] = useState<SaDashboardStats | null>(null);
   const [saUsers, setSaUsers] = useState<SaUserListItem[] | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
@@ -65,17 +65,13 @@ export default function SuperAdminPage() {
     null,
   );
   const [editUser, setEditUser] = useState<SaUserListItem | null>(null);
-  const [deactivateUserId, setDeactivateUserId] = useState<string | null>(null);
-  const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
   const [deleteOrganizationId, setDeleteOrganizationId] = useState<
     string | null
   >(null);
   const [confirmLoading, setConfirmLoading] = useState(false);
-  const [updatingOrganizationId, setUpdatingOrganizationId] = useState<
-    string | null
-  >(null);
-  const [activeTab, setActiveTab] = useState<"organizations" | "users">(
-    "organizations",
+  const [createClinicDialogOpen, setCreateClinicDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"organizations" | "users" | "clinics">(
+    initialTab,
   );
   const [userQuery, setUserQuery] = useState("");
   // Conexões WebSocket ao vivo. Não vive junto dos dados da listagem porque
@@ -88,6 +84,7 @@ export default function SuperAdminPage() {
   const { user: currentUser, hasRole } = useAuth();
   const canDeleteOrganization = hasRole("SA_MASTER");
   const canCreateOrganization = hasRole("SA_MASTER") || hasRole("SA_USER");
+  const canCreateClinic = hasRole("SA_MASTER") || hasRole("SA_USER");
   const { socket } = useSocket();
 
   const ORGANIZATION_STATUSES = [
@@ -168,17 +165,16 @@ export default function SuperAdminPage() {
   const isAnyDialogOpen =
     createDialogOpen ||
     createOrganizationDialogOpen ||
+    createClinicDialogOpen ||
     !!editOrganizationId ||
     !!editUser ||
-    !!deactivateUserId ||
-    !!deleteUserId ||
     !!deleteOrganizationId;
 
   // Atalho "N" (sem modificador) — abre a criação do que estiver na aba
   // ativa, igual "c"/"n" em Linear/Github. Ignorado enquanto o usuário
   // digita em qualquer campo ou já existe um diálogo aberto.
   useEffect(() => {
-    if (!canCreateOrganization) return;
+    if (!canCreateOrganization && !canCreateClinic) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() !== "n") return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -192,13 +188,15 @@ export default function SuperAdminPage() {
       e.preventDefault();
       if (activeTab === "organizations") {
         setCreateOrganizationDialogOpen(true);
+      } else if (activeTab === "clinics") {
+        setCreateClinicDialogOpen(true);
       } else {
         setCreateDialogOpen(true);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeTab, canCreateOrganization, isAnyDialogOpen]);
+  }, [activeTab, canCreateClinic, canCreateOrganization, isAnyDialogOpen]);
 
   const handleCreateSuccess = () => {
     setCreateDialogOpen(false);
@@ -210,88 +208,6 @@ export default function SuperAdminPage() {
     setEditUser(null);
     loadUsers();
     toast("Usuário SA atualizado com sucesso.", "success");
-  };
-
-  const handleDeactivateConfirm = async () => {
-    if (!deactivateUserId) return;
-    setConfirmLoading(true);
-    try {
-      const res = await superAdminApi.deactivateUser(deactivateUserId);
-      if (res.error) {
-        toast(res.error, "error");
-        return;
-      }
-      setDeactivateUserId(null);
-      loadUsers();
-      toast("Usuário SA desativado com sucesso.", "success");
-    } catch (err) {
-      toast(err instanceof Error ? err.message : "Erro ao desativar.", "error");
-    } finally {
-      setConfirmLoading(false);
-    }
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!deleteUserId) return;
-    setConfirmLoading(true);
-    try {
-      const res = await superAdminApi.deleteUser(deleteUserId);
-      if (res.error) {
-        toast(res.error, "error");
-        return;
-      }
-      setDeleteUserId(null);
-      loadUsers();
-      toast("Usuário SA excluído com sucesso.", "success");
-    } catch (err) {
-      toast(err instanceof Error ? err.message : "Erro ao excluir.", "error");
-    } finally {
-      setConfirmLoading(false);
-    }
-  };
-
-  const handleActivate = async (userId: string) => {
-    try {
-      const res = await superAdminApi.activateUser(userId);
-      if (res.error) {
-        toast(res.error, "error");
-        return;
-      }
-      loadUsers();
-      toast("Usuário SA ativado com sucesso.", "success");
-    } catch (err) {
-      toast(err instanceof Error ? err.message : "Erro ao ativar.", "error");
-    }
-  };
-
-  const handleOrganizationStatusChange = async (
-    organizationId: string,
-    newStatus: string,
-  ) => {
-    setUpdatingOrganizationId(organizationId);
-    try {
-      const res = await superAdminApi.updateOrganizationStatus(
-        organizationId,
-        newStatus,
-      );
-      if (res.error) {
-        toast(res.error, "error");
-        return;
-      }
-      loadStats();
-      refetchOrganizations();
-      const label =
-        ORGANIZATION_STATUSES.find((s) => s.value === newStatus)?.label ??
-        newStatus;
-      toast(`Status da organização atualizado para "${label}".`, "success");
-    } catch (err) {
-      toast(
-        err instanceof Error ? err.message : "Erro ao atualizar status.",
-        "error",
-      );
-    } finally {
-      setUpdatingOrganizationId(null);
-    }
   };
 
   const handleDeleteOrganizationConfirm = async () => {
@@ -389,7 +305,7 @@ export default function SuperAdminPage() {
         variant="solid"
         value={activeTab}
         onValueChange={(value) =>
-          setActiveTab(value === "users" ? "users" : "organizations")
+          setActiveTab(value === "users" ? "users" : value === "clinics" ? "clinics" : "organizations")
         }
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -402,32 +318,44 @@ export default function SuperAdminPage() {
               <UsersRound size={15} aria-hidden="true" />
               Equipe da plataforma
             </Tabs.Trigger>
+            {canCreateClinic && (
+              <Tabs.Trigger value="clinics">
+                <Hospital size={15} aria-hidden="true" />
+                Clínicas
+              </Tabs.Trigger>
+            )}
           </Tabs.List>
           {activeTab === "organizations" && canCreateOrganization && (
-            <Button
-              onClick={() => setCreateOrganizationDialogOpen(true)}
-              variant="primary"
-              className="gap-1.5"
-            >
-              <Plus size={16} />
-              Nova organização
-              <kbd className="ml-1 hidden rounded border border-white/25 px-1.5 py-0.5 text-[10px] font-medium leading-none opacity-80 sm:inline">
-                N
-              </kbd>
-            </Button>
+            <Tooltip content="Atalho: N">
+              <Button
+                onClick={() => setCreateOrganizationDialogOpen(true)}
+                variant="primary"
+                className="gap-1.5"
+              >
+                <Plus size={16} />
+                Nova organização
+              </Button>
+            </Tooltip>
           )}
           {activeTab === "users" && canCreateOrganization && (
-            <Button
-              onClick={() => setCreateDialogOpen(true)}
-              variant="primary"
-              className="gap-1.5"
-            >
-              <Plus size={16} />
-              Novo usuário
-              <kbd className="ml-1 hidden rounded border border-white/25 px-1.5 py-0.5 text-[10px] font-medium leading-none opacity-80 sm:inline">
-                N
-              </kbd>
-            </Button>
+            <Tooltip content="Atalho: N">
+              <Button
+                onClick={() => setCreateDialogOpen(true)}
+                variant="primary"
+                className="gap-1.5"
+              >
+                <Plus size={16} />
+                Novo usuário
+              </Button>
+            </Tooltip>
+          )}
+          {activeTab === "clinics" && canCreateClinic && (
+            <Tooltip content="Atalho: N">
+              <Button onClick={() => setCreateClinicDialogOpen(true)} variant="primary" className="gap-1.5">
+                <Plus size={16} />
+                Nova clínica
+              </Button>
+            </Tooltip>
           )}
         </div>
 
@@ -462,7 +390,6 @@ export default function SuperAdminPage() {
                   >
                     Organização
                   </DataTable.HeaderCell>
-                  <DataTable.HeaderCell>Plano</DataTable.HeaderCell>
                   <DataTable.HeaderCell align="right">
                     Usuários
                   </DataTable.HeaderCell>
@@ -486,19 +413,20 @@ export default function SuperAdminPage() {
                   >
                     Criado em
                   </DataTable.HeaderCell>
-                  <DataTable.HeaderCell align="right">
-                    Ações
-                  </DataTable.HeaderCell>
+                  <DataTable.HeaderCell className="w-10" />
                 </DataTable.HeaderRow>
               </DataTable.Header>
               <DataTable.Body>
                 {loadingOrganizations ? (
-                  <DataTable.SkeletonRow colSpan={8} />
+                  <DataTable.SkeletonRow colSpan={7} />
                 ) : !items.length ? (
                   <tr>
                     <td
-                      colSpan={8}
-                      className="px-6 py-10 text-center text-muted-foreground text-sm"
+                      colSpan={7}
+                      className={cn(
+                        "px-6 py-10 text-center text-muted-foreground text-sm",
+                        !organizationFilters.search && "animate-empty-state-enter",
+                      )}
                     >
                       {organizationFilters.search
                         ? "Nenhuma organização encontrada para essa busca."
@@ -507,9 +435,12 @@ export default function SuperAdminPage() {
                   </tr>
                 ) : (
                   items.map((c) => (
-                    <DataTable.Row key={c.id}>
-                      <DataTable.Cell>{c.name}</DataTable.Cell>
-                      <DataTable.Cell>{c.plan}</DataTable.Cell>
+                    <DataTable.Row
+                      key={c.id}
+                      className="cursor-pointer"
+                      onClick={() => handleEnterOrganization(c.id, c.name)}
+                    >
+                      <DataTable.Cell className="font-medium">{c.name}</DataTable.Cell>
                       <DataTable.Cell
                         align="right"
                         className={cn(
@@ -519,8 +450,6 @@ export default function SuperAdminPage() {
                       >
                         {c.userCount}
                       </DataTable.Cell>
-                      {/* O evento de socket é a fonte mais fresca; o valor do
-                          payload é o fallback até o primeiro evento chegar. */}
                       <DataTable.Cell
                         align="right"
                         className={cn(
@@ -532,62 +461,35 @@ export default function SuperAdminPage() {
                         {liveConnections[c.id] ?? c.activeConnections ?? 0}
                       </DataTable.Cell>
                       <DataTable.Cell>
-                        <Dropdown
-                          align="start"
-                          trigger={
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              disabled={updatingOrganizationId === c.id}
-                              className="w-[140px] h-8 text-xs justify-between"
-                            >
-                              <span className="flex items-center gap-1.5 truncate">
-                                <span
-                                  className={cn(
-                                    "size-1.5 shrink-0 rounded-full",
-                                    STATUS_DOT_CLASSES[c.status] ??
-                                      "bg-muted-foreground",
-                                  )}
-                                />
-                                {ORGANIZATION_STATUSES.find(
-                                  (s) => s.value === c.status,
-                                )?.label ?? c.status}
-                              </span>
-                              <ChevronDown className="h-3.5 w-3.5 opacity-60" />
-                            </Button>
-                          }
-                          items={[
-                            {
-                              type: "radio",
-                              value: c.status,
-                              onValueChange: (value) =>
-                                handleOrganizationStatusChange(c.id, value),
-                              options: ORGANIZATION_STATUSES.map((s) => ({
-                                value: s.value,
-                                hideIndicator: true,
-                                label: (
-                                  <span className="flex items-center gap-1.5">
-                                    <span
-                                      className={cn(
-                                        "size-1.5 shrink-0 rounded-full",
-                                        STATUS_DOT_CLASSES[s.value] ??
-                                          "bg-muted-foreground",
-                                      )}
-                                    />
-                                    {s.label}
-                                  </span>
-                                ),
-                              })),
-                            },
-                          ]}
-                        />
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium",
+                            c.status === "ACTIVE" && "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+                            c.status === "ACTIVATION" && "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+                            c.status === "SUSPENDED" && "bg-muted text-muted-foreground",
+                            c.status === "CANCELLED" && "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "size-1.5 rounded-full",
+                              STATUS_DOT_CLASSES[c.status] ?? "bg-muted-foreground",
+                            )}
+                          />
+                          {ORGANIZATION_STATUSES.find(
+                            (s) => s.value === c.status,
+                          )?.label ?? c.status}
+                        </span>
                       </DataTable.Cell>
                       <DataTable.Cell>
-                        <span>{c.createdByName ?? "—"}</span>
-                        {c.createdByEmail && (
-                          <span className="block text-xs text-muted-foreground">
-                            {c.createdByEmail}
-                          </span>
+                        {c.createdByName ? (
+                          <Tooltip content={c.createdByEmail || ""}>
+                            <span className="truncate max-w-[120px] inline-block align-bottom">
+                              {c.createdByName}
+                            </span>
+                          </Tooltip>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
                         )}
                       </DataTable.Cell>
                       <DataTable.Cell className="text-muted-foreground text-xs">
@@ -599,47 +501,35 @@ export default function SuperAdminPage() {
                             })
                           : "—"}
                       </DataTable.Cell>
-                      <DataTable.Cell align="right">
+                      <DataTable.Cell>
                         <div
                           className="flex items-center justify-end gap-1"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="gap-1.5 text-muted-foreground hover:text-foreground"
-                            onClick={() =>
-                              handleEnterOrganization(c.id, c.name)
-                            }
-                          >
-                            <LogIn size={14} />
-                            Entrar
-                          </Button>
-                          <RowActionsMenu
-                            actions={[
-                              ...(canCreateOrganization
-                                ? [
-                                    {
-                                      icon: Edit,
-                                      label: "Editar organização",
-                                      onClick: () =>
-                                        setEditOrganizationId(c.id),
-                                    } satisfies RowActionsMenuAction,
-                                  ]
-                                : []),
-                              ...(canDeleteOrganization
-                                ? [
-                                    {
-                                      icon: Trash2,
-                                      label: "Excluir organização",
-                                      onClick: () =>
-                                        setDeleteOrganizationId(c.id),
-                                      variant: "danger",
-                                    } satisfies RowActionsMenuAction,
-                                  ]
-                                : []),
-                            ]}
-                          />
+                          {canCreateOrganization && (
+                            <Tooltip content="Editar organização">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="size-8 p-0 text-muted-foreground hover:text-foreground"
+                                onClick={() => setEditOrganizationId(c.id)}
+                              >
+                                <Edit size={15} />
+                              </Button>
+                            </Tooltip>
+                          )}
+                          {canDeleteOrganization && (
+                            <Tooltip content="Excluir organização">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="size-8 p-0 text-muted-foreground hover:text-destructive"
+                                onClick={() => setDeleteOrganizationId(c.id)}
+                              >
+                                <Trash2 size={15} />
+                              </Button>
+                            </Tooltip>
+                          )}
                         </div>
                       </DataTable.Cell>
                     </DataTable.Row>
@@ -676,19 +566,19 @@ export default function SuperAdminPage() {
                   <DataTable.HeaderCell>Função</DataTable.HeaderCell>
                   <DataTable.HeaderCell>Status</DataTable.HeaderCell>
                   <DataTable.HeaderCell>Criado em</DataTable.HeaderCell>
-                  <DataTable.HeaderCell align="right">
-                    Ações
-                  </DataTable.HeaderCell>
                 </DataTable.HeaderRow>
               </DataTable.Header>
               <DataTable.Body>
                 {loadingUsers ? (
-                  <DataTable.SkeletonRow colSpan={6} />
+                  <DataTable.SkeletonRow colSpan={5} />
                 ) : !filteredUsers.length ? (
                   <tr>
                     <td
-                      colSpan={6}
-                      className="px-6 py-10 text-center text-muted-foreground text-sm"
+                      colSpan={5}
+                      className={cn(
+                        "px-6 py-10 text-center text-muted-foreground text-sm",
+                        !userQuery && "animate-empty-state-enter",
+                      )}
                     >
                       {userQuery
                         ? "Nenhum usuário encontrado para essa busca."
@@ -697,11 +587,14 @@ export default function SuperAdminPage() {
                   </tr>
                 ) : (
                   filteredUsers.map((u) => {
-                    const isCurrentUser = currentUser?.id === u.id;
                     const isActive = u.is_active !== false;
                     return (
-                      <DataTable.Row key={u.id}>
-                        <DataTable.Cell>{u.name}</DataTable.Cell>
+                      <DataTable.Row
+                        key={u.id}
+                        className="cursor-pointer"
+                        onClick={() => setEditUser(u)}
+                      >
+                        <DataTable.Cell className="font-medium">{u.name}</DataTable.Cell>
                         <DataTable.Cell>{u.email}</DataTable.Cell>
                         <DataTable.Cell>
                           <span className="font-medium">
@@ -710,12 +603,19 @@ export default function SuperAdminPage() {
                         </DataTable.Cell>
                         <DataTable.Cell>
                           <span
-                            className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
+                            className={cn(
+                              "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium",
                               isActive
                                 ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"
-                                : "bg-muted text-muted-foreground"
-                            }`}
+                                : "bg-muted text-muted-foreground",
+                            )}
                           >
+                            <span
+                              className={cn(
+                                "size-1.5 rounded-full",
+                                isActive ? "bg-emerald-500" : "bg-muted-foreground",
+                              )}
+                            />
                             {isActive ? "Ativo" : "Inativo"}
                           </span>
                         </DataTable.Cell>
@@ -731,51 +631,25 @@ export default function SuperAdminPage() {
                               )
                             : "—"}
                         </DataTable.Cell>
-                        <DataTable.Cell align="right">
-                          <div
-                            className="flex justify-end"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <RowActionsMenu
-                              actions={[
-                                {
-                                  icon: Edit,
-                                  label: "Editar",
-                                  onClick: () => setEditUser(u),
-                                  separatorAfter: !isCurrentUser,
-                                } satisfies RowActionsMenuAction,
-                                ...(!isCurrentUser
-                                  ? [
-                                      isActive
-                                        ? ({
-                                            icon: UserMinus,
-                                            label: "Desativar",
-                                            onClick: () =>
-                                              setDeactivateUserId(u.id),
-                                          } satisfies RowActionsMenuAction)
-                                        : ({
-                                            icon: UserPlus,
-                                            label: "Ativar",
-                                            onClick: () => handleActivate(u.id),
-                                          } satisfies RowActionsMenuAction),
-                                      {
-                                        icon: Trash2,
-                                        label: "Excluir",
-                                        onClick: () => setDeleteUserId(u.id),
-                                        variant: "danger",
-                                      } satisfies RowActionsMenuAction,
-                                    ]
-                                  : []),
-                              ]}
-                            />
-                          </div>
-                        </DataTable.Cell>
                       </DataTable.Row>
                     );
                   })
                 )}
               </DataTable.Body>
             </DataTable.Root>
+          </TableSurface>
+        </Tabs.Content>
+
+        <Tabs.Content value="clinics" className="mt-4">
+          <TableSurface>
+            <div className="flex min-h-56 flex-col items-center justify-center gap-2 px-6 py-12 text-center">
+              <Hospital size={24} className="text-muted-foreground" aria-hidden="true" />
+              <p className="font-medium">Clínicas do Grupo Luta Pela Vida</p>
+              <p className="max-w-md text-sm text-muted-foreground">
+                Cadastre as unidades que participarão do Mutirão de Mamografia 2026.
+                Esta área está disponível somente para Super Admin.
+              </p>
+            </div>
           </TableSurface>
         </Tabs.Content>
       </Tabs>
@@ -795,6 +669,13 @@ export default function SuperAdminPage() {
         }}
       />
 
+      <CreateClinicDialog
+        open={createClinicDialogOpen}
+        onOpenChange={setCreateClinicDialogOpen}
+        organizations={stats?.organizations ?? []}
+        onSuccess={loadStats}
+      />
+
       <EditOrganizationDialog
         open={!!editOrganizationId}
         onOpenChange={(open) => !open && setEditOrganizationId(null)}
@@ -809,29 +690,26 @@ export default function SuperAdminPage() {
         open={!!editUser}
         onOpenChange={(open) => !open && setEditUser(null)}
         user={editUser}
+        currentUserId={currentUser?.id}
         onSuccess={handleEditSuccess}
-      />
-
-      <Confirm
-        open={!!deactivateUserId}
-        onClose={() => setDeactivateUserId(null)}
-        onConfirm={handleDeactivateConfirm}
-        title="Desativar usuário da plataforma"
-        message={`Desativar este usuário? Ele perderá acesso à ${PAINEL_NAME}.`}
-        confirmText="Desativar"
-        variant="default"
-        isLoading={confirmLoading}
-      />
-
-      <Confirm
-        open={!!deleteUserId}
-        onClose={() => setDeleteUserId(null)}
-        onConfirm={handleDeleteConfirm}
-        title="Excluir usuário da plataforma"
-        message="Excluir este usuário da plataforma? Esta ação não pode ser desfeita."
-        confirmText="Sim, excluir"
-        variant="danger"
-        isLoading={confirmLoading}
+        onDeactivate={async (userId) => {
+          const res = await superAdminApi.deactivateUser(userId);
+          if (res.error) { toast(res.error, "error"); throw new Error(res.error); }
+          loadUsers();
+          toast("Usuário SA desativado com sucesso.", "success");
+        }}
+        onActivate={async (userId) => {
+          const res = await superAdminApi.activateUser(userId);
+          if (res.error) { toast(res.error, "error"); throw new Error(res.error); }
+          loadUsers();
+          toast("Usuário SA ativado com sucesso.", "success");
+        }}
+        onDelete={async (userId) => {
+          const res = await superAdminApi.deleteUser(userId);
+          if (res.error) { toast(res.error, "error"); throw new Error(res.error); }
+          loadUsers();
+          toast("Usuário SA excluído com sucesso.", "success");
+        }}
       />
 
       <Confirm

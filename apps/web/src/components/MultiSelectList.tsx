@@ -245,6 +245,7 @@ export function MultiSelectList({
           compact
           icon={SearchX}
           title={emptyText}
+          animate={false}
           className="border-none"
         />
       ) : (

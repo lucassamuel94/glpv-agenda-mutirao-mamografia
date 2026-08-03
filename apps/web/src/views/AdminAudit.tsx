@@ -141,6 +141,7 @@ export default function AdminAuditView() {
                   ? "Nenhum resultado com os filtros aplicados."
                   : "O log de auditoria ainda está vazio."
               }
+              animate={!filters.outcome && !filters.cross_tenant && !filters.entity}
               className="rounded-none border-0 bg-transparent shadow-none"
             />
           ) : (

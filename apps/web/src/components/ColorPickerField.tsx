@@ -91,6 +91,8 @@ export function ColorPickerField({
 }: ColorPickerFieldProps) {
   const { watch, setValue: setFormValue } = useForm<Record<string, unknown>>();
   const [open, setOpen] = useState(false);
+  /** Hex sendo digitado; `null` = campo espelha a cor efetiva. */
+  const [draft, setDraft] = useState<string | null>(null);
   const watchedValue = watch(name);
   const color = isHexColor(watchedValue) ? watchedValue : defaultColor;
   const [hue, setHue] = useState(() => hexToHsv(color)[0]);
@@ -254,14 +256,31 @@ export function ColorPickerField({
             />
           </div>
 
-          <div className="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-3 py-2">
+          <label className="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-3 py-2 focus-within:ring-2 focus-within:ring-ring">
             <span className="text-xs font-medium text-muted-foreground">
               Personalizada
             </span>
-            <span className="font-mono text-sm font-semibold text-foreground">
-              {color.toUpperCase()}
-            </span>
-          </div>
+            {/* `draft` deixa o usuário digitar um hex incompleto ("#4F4") sem
+                que cada tecla vire uma cor inválida no form. Só quando o valor
+                fecha 6 dígitos é que vai pro form; ao sair do campo o rascunho
+                é descartado e volta a espelhar a cor real. */}
+            <input
+              type="text"
+              inputMode="text"
+              spellCheck={false}
+              maxLength={7}
+              aria-label="Cor personalizada em hexadecimal"
+              value={draft ?? color.toUpperCase()}
+              onChange={(event) => {
+                const raw = event.target.value.replace(/[^0-9a-fA-F#]/g, "");
+                const next = `#${raw.replace(/#/g, "")}`.slice(0, 7);
+                setDraft(next.toUpperCase());
+                if (isHexColor(next)) selectColor(next.toLowerCase());
+              }}
+              onBlur={() => setDraft(null)}
+              className="w-24 bg-transparent text-right font-mono text-sm font-semibold text-foreground focus:outline-none"
+            />
+          </label>
         </PopoverContent>
       </Popover>
     </div>

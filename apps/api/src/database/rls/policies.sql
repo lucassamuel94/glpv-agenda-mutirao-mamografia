@@ -79,6 +79,33 @@ CREATE POLICY audit_logs_write ON audit_logs
   );
 
 -- ----------------------------------------------------------------------------
+-- Tabelas do mutirão de mamografia
+-- Todas carregam `organization_id` e usam a mesma policy de tenant. O bloco
+-- evita repetir SQL mantendo as tabelas explícitas para o parser/verificador.
+-- ----------------------------------------------------------------------------
+DO $$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY[
+    'clinics',
+    'slots',
+    'patients',
+    'offers',
+    'appointments',
+    'waiting_list_entries'
+  ] LOOP
+    EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
+    EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', t);
+    EXECUTE format('DROP POLICY IF EXISTS tenant_isolation_%I ON %I', t, t);
+    EXECUTE format(
+      'CREATE POLICY %I ON %I USING (organization_id = app_current_tenant()) WITH CHECK (organization_id = app_current_tenant())',
+      'tenant_isolation_' || t,
+      t
+    );
+  END LOOP;
+END $$;
+
+-- ----------------------------------------------------------------------------
 -- Tabela: admin_grants — REMOVIDA em 2026-07-28
 -- O acesso cross-tenant do SA passou a ser exclusivamente
 -- `POST /auth/switch-organization` (spec 2026-07-28-remocao-grants-design).

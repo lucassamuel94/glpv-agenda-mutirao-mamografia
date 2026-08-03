@@ -12,9 +12,18 @@ import React, {
 import { mutate } from "swr";
 import { authApi } from "@/lib/api/auth";
 import type { ApiResponse } from "@/lib/api/base";
-import type { AuthProfileResponse, UserPreferences } from "@/types/auth";
+import type {
+  AuthProfileResponse,
+  OrganizationSummary,
+  PublicBrandingResponse,
+  UserPreferences,
+} from "@/types/auth";
 import { can, SA_ROLES } from "@/lib/permissions";
 import { applyBrandingColor, applyBrandingFavicon } from "@/lib/branding";
+import {
+  LOGIN_THEME_STORAGE_KEY,
+  useTheme,
+} from "@/providers/ThemeProvider";
 
 /** Alinhado ao backend: backend/src/common/enums/user-role.enum.ts */
 export type UserRole =
@@ -36,16 +45,7 @@ interface User {
   role?: UserRole;
   must_change_password?: boolean;
   preferences?: UserPreferences;
-  organizations?: {
-    id: string;
-    name: string;
-    is_primary: boolean;
-    is_current?: boolean;
-    plan?: string;
-    primaryColor?: string;
-    logoUrl?: string;
-    status?: string;
-  }[];
+  organizations?: OrganizationSummary[];
 }
 
 interface AuthState {
@@ -92,18 +92,17 @@ type AuthContextValue = AuthState & {
   isAdmin: () => boolean;
   /** True se o usuário possui ao menos uma das permissões (áreas de lib/permissions). SA ⇒ tudo. */
   hasPermission: (perms: string[]) => boolean;
-  currentTenant: {
-    id: string;
-    name: string;
-    is_primary: boolean;
-    is_current?: boolean;
-    plan?: string;
+  currentTenant: OrganizationSummary | null;
+  /** Branding resolvido: da organização atual se logado, senão da organização
+   *  pública da instância (whitelabel pré-login — ver /auth/branding). */
+  orgBranding: {
     primaryColor?: string;
     logoUrl?: string;
+    faviconUrl?: string;
+    /** Defaults de interface da organização; preferência do usuário sobrepõe. */
+    density?: "compact" | "comfortable" | "spacious";
+    theme?: "light" | "dark" | "system";
   } | null;
-  /** Branding (cor/logo) resolvido: da organização atual se logado, senão da
-   *  organização pública da instância (whitelabel pré-login — ver /auth/branding). */
-  orgBranding: { primaryColor?: string; logoUrl?: string } | null;
 };
 
 const VALID_ROLES: UserRole[] = [
@@ -116,6 +115,20 @@ const VALID_ROLES: UserRole[] = [
   "COORDINATOR",
   "USER",
 ];
+
+/**
+ * Organização "atual" — UMA definição para todo o hook. O login gravava
+ * `app_tenant` com `find(is_current) ?? organizations[0]` enquanto o
+ * `currentTenant` da UI usava `find(is_current) || null`: divergiam justamente
+ * no Super Admin, cujo JWT aponta para a organização SYSTEM (que não entra
+ * nesta lista), e a UI ficava sem tenant — sem cor, sem logo, sem favicon.
+ */
+function pickCurrentOrganization(
+  organizations: OrganizationSummary[] | undefined,
+): OrganizationSummary | null {
+  if (!organizations?.length) return null;
+  return organizations.find((c) => c.is_current === true) ?? organizations[0];
+}
 
 function parseRole(raw: string | null | undefined): UserRole | null {
   return raw && (VALID_ROLES as string[]).includes(raw) ? (raw as UserRole) : null;
@@ -137,12 +150,10 @@ const INITIAL_STATE: AuthState = {
  * O GET /auth/check é chamado apenas uma vez ao montar (quando há token).
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const { setTheme } = useTheme();
   const [authState, setAuthState] = useState<AuthState>(INITIAL_STATE);
-  const [publicBranding, setPublicBranding] = useState<{
-    primaryColor?: string;
-    logoUrl?: string;
-    faviconUrl?: string;
-  } | null>(null);
+  const [publicBranding, setPublicBranding] =
+    useState<PublicBrandingResponse | null>(null);
 
   // Hidratação: marca que já estamos no CLIENTE. É o caso em que o efeito é a
   // única ferramenta possível — no servidor ele não roda, e é essa diferença que
@@ -272,8 +283,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const userRole = parseRole(response.data.user?.role);
         const userData = response.data.user;
         const organizations = response.data.organizations ?? [];
-        const current =
-          organizations.find((c) => c.is_current) ?? organizations[0];
+        const current = pickCurrentOrganization(organizations);
         setAuthState({
           user: {
             id: userData?.id ?? "",
@@ -377,12 +387,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [authState.userRole],
   );
 
-  const currentTenant = useMemo(() => {
-    if (!authState.user?.organizations) return null;
-    return (
-      authState.user.organizations.find((c) => c.is_current === true) || null
-    );
-  }, [authState.user?.organizations]);
+  const currentTenant = useMemo(
+    () => pickCurrentOrganization(authState.user?.organizations),
+    [authState.user?.organizations],
+  );
 
   /**
    * Branding pré-login: só existe organização "atual" depois de autenticar,
@@ -391,46 +399,75 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * enquanto `checkAuth` ainda está resolvendo o token).
    */
   useEffect(() => {
-    if (!authState.isHydrated || authState.isLoading || authState.isAuthenticated) return;
+    if (!authState.isHydrated || authState.isLoading) return;
+    // A condição é ter COR, não ter organização: o Super Admin aterrissa na
+    // Platform (`PLATFORM_TENANT_ID`, ver auth.service.ts), que é uma
+    // organização de verdade na lista mas não tem white label. Sem esta busca
+    // ele veria a cor padrão em vez da escolhida no /setup.
+    if (authState.isAuthenticated && currentTenant?.primaryColor) return;
     let cancelled = false;
     authApi.getBranding().then((res) => {
       if (cancelled || !res.data) return;
-      setPublicBranding({
-        primaryColor: res.data.primaryColor,
-        logoUrl: res.data.logoUrl,
-        faviconUrl: res.data.faviconUrl,
-      });
+      setPublicBranding(res.data);
     });
     return () => {
       cancelled = true;
     };
-  }, [authState.isHydrated, authState.isLoading, authState.isAuthenticated]);
+  }, [
+    authState.isHydrated,
+    authState.isLoading,
+    authState.isAuthenticated,
+    currentTenant,
+  ]);
 
   // Cor pessoal do usuário (Preferências → Minha conta) sobrepõe o branding
   // da organização/instância — mesmo mecanismo (`applyBrandingColor`), só
   // muda a fonte da cor.
+  // Composição por CAMPO, não escolha de fonte: a organização atual pode ser a
+  // Platform, que existe na lista mas não tem white label nenhum. Escolher
+  // "tenant ou público" em bloco deixava o Super Admin sem cor, logo e favicon.
   const orgBranding = useMemo(() => {
     const userColor = authState.user?.preferences?.primaryColor || undefined;
-    if (currentTenant) {
-      return {
-        primaryColor: userColor ?? currentTenant.primaryColor,
-        logoUrl: currentTenant.logoUrl,
-      };
-    }
     return {
-      primaryColor: userColor ?? publicBranding?.primaryColor,
-      logoUrl: publicBranding?.logoUrl,
+      primaryColor:
+        userColor ?? currentTenant?.primaryColor ?? publicBranding?.primaryColor,
+      logoUrl: currentTenant?.logoUrl ?? publicBranding?.logoUrl,
+      faviconUrl: currentTenant?.faviconUrl ?? publicBranding?.faviconUrl,
+      density: currentTenant?.density ?? publicBranding?.density,
+      theme: currentTenant?.theme ?? publicBranding?.theme,
     };
   }, [currentTenant, publicBranding, authState.user?.preferences?.primaryColor]);
 
   // Sincroniza com o DOM (CSS vars + favicon) — sistema externo, efeito é a
-  // ferramenta certa aqui.
+  // ferramenta certa aqui. O favicon sai do mesmo `orgBranding` que a cor: até
+  // então só o branding público era aplicado, então o favicon da organização
+  // sumia assim que o usuário logava.
   useEffect(() => {
     applyBrandingColor(orgBranding?.primaryColor);
-    applyBrandingFavicon(
-      currentTenant ? undefined : publicBranding?.faviconUrl,
-    );
-  }, [orgBranding, currentTenant, publicBranding]);
+    applyBrandingFavicon(orgBranding?.faviconUrl);
+  }, [orgBranding]);
+
+  /**
+   * Tema padrão da organização (escolhido no /setup). Só vale como DEFAULT:
+   * qualquer sinal de escolha explícita do usuário — preferência salva no
+   * perfil, toggle da tela de login, ou tema já gravado em `app_user` — vence.
+   * O ThemeProvider não pode ler isto sozinho: ele monta ACIMA do
+   * AuthProvider (`app/layout.tsx`) e não enxerga a organização.
+   */
+  useEffect(() => {
+    const organizationTheme = orgBranding?.theme;
+    if (!organizationTheme || organizationTheme === "system") return;
+    if (authState.user?.preferences?.theme) return;
+    if (typeof window === "undefined") return;
+    if (localStorage.getItem(LOGIN_THEME_STORAGE_KEY)) return;
+    try {
+      const storedUser = localStorage.getItem("app_user");
+      if (storedUser && JSON.parse(storedUser)?.theme) return;
+    } catch {
+      // app_user corrompido: trata como "sem escolha do usuário"
+    }
+    setTheme(organizationTheme);
+  }, [orgBranding?.theme, authState.user?.preferences?.theme, setTheme]);
 
   /**
    * Limpa o marcador legacy de "visualizando como" (versões antigas gravavam

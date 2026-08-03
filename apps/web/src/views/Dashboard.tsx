@@ -1,21 +1,24 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
-import Link from "next/link";
+import React from "react";
+import useSWR from "swr";
 import {
   Activity,
-  ArrowDownRight,
-  ArrowRight,
-  ArrowUpRight,
-  CheckCircle2,
-  Clock3,
+  CalendarCheck,
+  CalendarClock,
+  Download,
+  ListChecks,
   Percent,
-  ShieldCheck,
+  TrendingUp,
+  UserX,
+  Users,
   XCircle,
 } from "lucide-react";
 import {
   Area,
   AreaChart,
+  Bar,
+  BarChart,
   CartesianGrid,
   ResponsiveContainer,
   Tooltip,
@@ -23,8 +26,6 @@ import {
   YAxis,
 } from "recharts";
 
-import { Badge } from "@/components/Badge";
-import { Button } from "@/components/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -34,29 +35,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useAuth } from "@/hooks/use-auth";
-import { useReports } from "@/hooks/use-reports";
-import type { ReportEntry } from "@/types/report";
+import { Button } from "@/components/Button";
+import { Badge } from "@/components/Badge";
 import { PageHeader } from "@/components/PageHeader";
-
-type Range = "7d" | "30d";
-
-const numberFormatter = new Intl.NumberFormat("pt-BR");
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("pt-BR", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  })
-    .format(new Date(value))
-    .replace(" de ", " ");
-}
-
-function displayAction(report: ReportEntry) {
-  return report.action.replaceAll("_", " ").toLowerCase();
-}
+import { useAuth } from "@/hooks/use-auth";
+import { mutiraoDashboardApi } from "@/lib/api/mutirao-dashboard";
+import type { MutiraoDashboard, MutiraoClinicMetric } from "@/lib/api/mutirao-dashboard";
 
 function greeting() {
   const hour = new Date().getHours();
@@ -65,110 +49,158 @@ function greeting() {
   return "Boa noite";
 }
 
-function activityLabel(value: string) {
-  return new Intl.DateTimeFormat("pt-BR", { weekday: "short" })
-    .format(new Date(value))
-    .replace(".", "");
+function formatNumber(value: number) {
+  return new Intl.NumberFormat("pt-BR").format(value);
+}
+
+function formatPercent(value: number) {
+  return `${value.toFixed(1)}%`;
+}
+
+function formatDateShort(dateStr: string) {
+  const [, m, d] = dateStr.split("-");
+  return `${d}/${m}`;
+}
+
+function occupationColor(rate: number): string {
+  if (rate >= 80) return "text-emerald-600 dark:text-emerald-400";
+  if (rate >= 50) return "text-amber-600 dark:text-amber-400";
+  return "text-rose-600 dark:text-rose-400";
 }
 
 export default function Dashboard() {
   const { user: currentUser } = useAuth();
-  const [range, setRange] = useState<Range>("7d");
-  const { data: recentReports = [], pagination: recentPagination } = useReports({
-    initialPage: 1,
-    initialLimit: 100,
-    syncUrl: false,
-  });
-  const { pagination: allowedPagination } = useReports({
-    initialPage: 1,
-    initialLimit: 1,
-    initialFilters: { outcome: "allowed" },
-    syncUrl: false,
-  });
-  const { pagination: deniedPagination } = useReports({
-    initialPage: 1,
-    initialLimit: 1,
-    initialFilters: { outcome: "denied" },
-    syncUrl: false,
-  });
+  const { data, error, isLoading } = useSWR<MutiraoDashboard>(
+    "mutirao-dashboard-executive",
+    async () => {
+      const response = await mutiraoDashboardApi.overview();
+      if (response.error) throw new Error(response.error);
+      return response.data!;
+    },
+    { refreshInterval: 30_000 }
+  );
 
-  // O total sai da própria listagem recente — havia uma quarta chamada a
-  // `/reports` só para ler `pagination.total` com os mesmos filtros.
-  const total = recentPagination?.total ?? 0;
-  const allowed = allowedPagination?.total ?? 0;
-  const denied = deniedPagination?.total ?? 0;
-  const approvalRate = total ? Math.round((allowed / total) * 100) : 0;
+  if (error) {
+    return (
+      <>
+        <PageHeader title="Dashboard" description="Não foi possível carregar os indicadores." />
+        <Card className="p-6 shadow-none">
+          <p className="text-sm text-muted-foreground">
+            Erro ao carregar dados. Verifique se o servidor está rodando e tente novamente.
+          </p>
+        </Card>
+      </>
+    );
+  }
 
-  // ponytail: a série vem dos 100 eventos mais recentes já carregados — em
-  // volume alto, o range de 30 dias subconta. Trocar por um endpoint de
-  // agregação por dia quando o volume justificar.
-  const activity = useMemo(() => {
-    const days = range === "7d" ? 7 : 30;
-    const now = new Date();
-    return Array.from({ length: days }, (_, index) => {
-      const date = new Date(now);
-      date.setDate(now.getDate() - (days - index - 1));
-      const key = date.toISOString().slice(0, 10);
-      const count = recentReports.filter(
-        (report) => report.created_at.slice(0, 10) === key,
-      ).length;
-      return {
-        label: days === 7 ? activityLabel(date.toISOString()) : `${date.getDate()}`,
-        value: count,
-      };
-    });
-  }, [range, recentReports]);
+  if (isLoading || !data) {
+    return (
+      <>
+        <PageHeader
+          title="Dashboard"
+          description={`${greeting()}, ${currentUser?.name?.split(" ")[0] ?? "Usuário"}…`}
+        />
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Card key={i} className="h-[120px] animate-pulse bg-muted/30 shadow-none" />
+          ))}
+        </div>
+      </>
+    );
+  }
 
-  const summaries = [
+  const { kpis, clinics, total, daily_trend } = data;
+
+  const kpiCards = [
     {
-      label: "Eventos registrados",
-      value: numberFormatter.format(total),
-      detail: "no período disponível",
-      icon: Activity,
-      tone: "text-primary",
+      label: "Total de vagas",
+      value: formatNumber(kpis.total_slots),
+      detail: `Campanha ${kpis.campaign_start?.slice(8)}/${kpis.campaign_start?.slice(5, 7)} a ${kpis.campaign_end?.slice(8)}/${kpis.campaign_end?.slice(5, 7)}`,
+      icon: CalendarClock,
+      tone: "text-blue-600 dark:text-blue-400",
     },
     {
-      label: "Permitidos",
-      value: numberFormatter.format(allowed),
-      detail: total ? `${approvalRate}% do total` : "sem registros",
-      icon: CheckCircle2,
+      label: "Agendamentos confirmados",
+      value: formatNumber(kpis.confirmed_appointments),
+      detail: `${formatNumber(kpis.appointments_today)} hoje · ${formatNumber(kpis.appointments_this_week)} esta semana`,
+      icon: CalendarCheck,
       tone: "text-emerald-600 dark:text-emerald-400",
     },
     {
-      label: "Negados",
-      value: numberFormatter.format(denied),
-      detail: total ? `${100 - approvalRate}% do total` : "sem registros",
+      label: "Taxa de ocupação",
+      value: formatPercent(kpis.occupation_rate),
+      detail: `${formatNumber(kpis.confirmed_appointments)} de ${formatNumber(kpis.total_slots)} vagas preenchidas`,
+      icon: Percent,
+      tone: occupationColor(kpis.occupation_rate),
+    },
+    {
+      label: "Cancelamentos",
+      value: formatNumber(kpis.total_cancellations),
+      detail: kpis.total_slots
+        ? `${((kpis.total_cancellations / (kpis.confirmed_appointments + kpis.total_cancellations || 1)) * 100).toFixed(1)}% dos agendamentos`
+        : "sem dados",
       icon: XCircle,
       tone: "text-rose-600 dark:text-rose-400",
     },
     {
-      // Antes: "Sessão ativa: 1 usuário autenticado" — um indicador que nunca
-      // muda não é indicador.
-      label: "Taxa de aprovação",
-      value: `${approvalRate}%`,
-      detail: total ? "dos eventos foram permitidos" : "sem registros",
-      icon: Percent,
+      label: "Vagas livres",
+      value: formatNumber(total.free_slots ?? 0),
+      detail: kpis.total_slots
+        ? `${(((total.free_slots ?? 0) / kpis.total_slots) * 100).toFixed(1)}% disponível`
+        : "sem vagas cadastradas",
+      icon: Activity,
       tone: "text-sky-600 dark:text-sky-400",
+    },
+    {
+      label: "Reservas ativas",
+      value: formatNumber(total.reserved_slots ?? 0),
+      detail: "Aguardando confirmação (expira em 10min)",
+      icon: TrendingUp,
+      tone: "text-amber-600 dark:text-amber-400",
+    },
+    {
+      label: "Lista de espera",
+      value: formatNumber(kpis.waiting_list_count),
+      detail: "Pacientes aguardando vaga",
+      icon: Users,
+      tone: "text-purple-600 dark:text-purple-400",
+    },
+    {
+      label: "Motivos de cancelamento",
+      value: formatNumber(total.operational_cancellations ?? 0),
+      detail: `Oper. ${total.operational_cancellations ?? 0} · Desist. ${total.withdrawal_cancellations ?? 0} · Ausência ${total.absence_cancellations ?? 0}`,
+      icon: UserX,
+      tone: "text-orange-600 dark:text-orange-400",
     },
   ];
 
   return (
     <>
-      {/* O `<h1>` é do PageHeader — a view tinha um segundo `<h1>` logo abaixo
-          ("Bom dia, ..."), dois títulos concorrendo na mesma tela e dois
-          níveis de heading duplicados para leitor de tela. A saudação virou a
-          descrição. */}
       <PageHeader
-        title="Dashboard"
-        description={`${greeting()}, ${currentUser?.name?.split(" ")[0] ?? "Usuário"} — acompanhe o que está acontecendo na sua operação hoje.`}
+        title="Dashboard Executivo — Mutirão de Mamografia"
+        description={`${greeting()}, ${currentUser?.name?.split(" ")[0] ?? "Gestor"} — visão consolidada da campanha.`}
       />
 
       <div className="flex flex-col gap-6 pb-4">
-        <section aria-label="Resumo dos indicadores" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {summaries.map(({ label, value, detail, icon: Icon, tone }) => (
+        {/* Export button */}
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.open(mutiraoDashboardApi.exportUrl(), "_blank")}
+          >
+            <Download className="mr-1.5 size-4" />
+            Exportar CSV
+          </Button>
+        </div>
+        {/* KPI Cards */}
+        <section aria-label="Indicadores-chave" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {kpiCards.map(({ label, value, detail, icon: Icon, tone }) => (
             <Card key={label} className="gap-4 py-5 shadow-none">
               <CardHeader className="flex flex-row items-start justify-between px-5 pb-0">
-                <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  {label}
+                </CardTitle>
                 <Icon className={`size-4 ${tone}`} aria-hidden="true" />
               </CardHeader>
               <CardContent className="px-5">
@@ -181,146 +213,246 @@ export default function Dashboard() {
           ))}
         </section>
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(300px,0.85fr)]">
+        {/* Charts Row */}
+        <div className="grid gap-6 xl:grid-cols-2">
+          {/* Daily Trend Chart */}
           <Card className="gap-0 py-0 shadow-none">
-            <CardHeader className="flex flex-col gap-4 border-b px-5 py-5 sm:flex-row sm:items-start sm:justify-between">
+            <CardHeader className="border-b px-5 py-5">
               <div className="flex flex-col gap-1">
-                <CardTitle className="text-base">Atividade</CardTitle>
-                <p className="text-sm text-muted-foreground">Eventos processados por dia</p>
-              </div>
-              <div className="flex items-center rounded-md border border-border p-0.5" aria-label="Período do gráfico">
-                <Button type="button" size="sm" variant="toggle" active={range === "7d"} onClick={() => setRange("7d")}>
-                  7 dias
-                </Button>
-                <Button type="button" size="sm" variant="toggle" active={range === "30d"} onClick={() => setRange("30d")}>
-                  30 dias
-                </Button>
+                <CardTitle className="text-base">Tendência de agendamentos</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Confirmações e cancelamentos por dia (últimos 30 dias)
+                </p>
               </div>
             </CardHeader>
             <CardContent className="px-3 pb-5 pt-5 sm:px-5">
-              <div className="h-[260px] w-full" aria-label={`Gráfico de atividade dos últimos ${range === "7d" ? "7 dias" : "30 dias"}`}>
+              <div className="h-[260px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={activity} margin={{ top: 8, right: 0, left: -20, bottom: 0 }}>
+                  <AreaChart
+                    data={daily_trend}
+                    margin={{ top: 8, right: 0, left: -20, bottom: 0 }}
+                  >
                     <defs>
-                      <linearGradient id="activity-fill" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.22} />
-                        <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                      <linearGradient id="fill-confirmations" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="hsl(152, 69%, 45%)" stopOpacity={0.2} />
+                        <stop offset="100%" stopColor="hsl(152, 69%, 45%)" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="fill-cancellations" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="hsl(0, 72%, 51%)" stopOpacity={0.15} />
+                        <stop offset="100%" stopColor="hsl(0, 72%, 51%)" stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeDasharray="3 3" />
-                    <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} tickMargin={10} />
-                    <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} width={30} />
-                    <Tooltip
-                      cursor={{ stroke: "hsl(var(--primary))", strokeOpacity: 0.25 }}
-                      contentStyle={{ borderRadius: 8, borderColor: "hsl(var(--border))", backgroundColor: "hsl(var(--popover))", color: "hsl(var(--popover-foreground))", fontSize: 12 }}
-                      formatter={(value) => [value, "Eventos"]}
+                    <CartesianGrid
+                      vertical={false}
+                      stroke="hsl(var(--border))"
+                      strokeDasharray="3 3"
                     />
-                    <Area type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#activity-fill)" activeDot={{ r: 4, fill: "hsl(var(--primary))", strokeWidth: 0 }} />
+                    <XAxis
+                      dataKey="date"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
+                      tickMargin={10}
+                      tickFormatter={formatDateShort}
+                    />
+                    <YAxis
+                      allowDecimals={false}
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                      width={30}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        borderRadius: 8,
+                        borderColor: "hsl(var(--border))",
+                        backgroundColor: "hsl(var(--popover))",
+                        color: "hsl(var(--popover-foreground))",
+                        fontSize: 12,
+                      }}
+                      labelFormatter={formatDateShort}
+                      formatter={(value: number, name: string) => [
+                        value,
+                        name === "confirmations" ? "Confirmações" : "Cancelamentos",
+                      ]}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="confirmations"
+                      stroke="hsl(152, 69%, 45%)"
+                      strokeWidth={2}
+                      fill="url(#fill-confirmations)"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="cancellations"
+                      stroke="hsl(0, 72%, 51%)"
+                      strokeWidth={1.5}
+                      fill="url(#fill-cancellations)"
+                      strokeDasharray="4 2"
+                    />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
             </CardContent>
           </Card>
 
+          {/* Clinic Occupancy Bar Chart */}
           <Card className="gap-0 py-0 shadow-none">
-            <CardHeader className="flex flex-row items-start justify-between border-b px-5 py-5">
+            <CardHeader className="border-b px-5 py-5">
               <div className="flex flex-col gap-1">
-                <CardTitle className="text-base">Resumo do acesso</CardTitle>
-                <p className="text-sm text-muted-foreground">Distribuição dos eventos</p>
-              </div>
-              <ShieldCheck className="size-4 text-muted-foreground" aria-hidden="true" />
-            </CardHeader>
-            <CardContent className="flex flex-col gap-5 px-5 py-5">
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Permitidos</span>
-                  <span className="font-medium text-foreground">{numberFormatter.format(allowed)}</span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-muted">
-                  <div className="h-full rounded-full bg-emerald-500" style={{ width: `${total ? (allowed / total) * 100 : 0}%` }} />
-                </div>
-              </div>
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Negados</span>
-                  <span className="font-medium text-foreground">{numberFormatter.format(denied)}</span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-muted">
-                  <div className="h-full rounded-full bg-rose-500" style={{ width: `${total ? (denied / total) * 100 : 0}%` }} />
-                </div>
-              </div>
-              <div className="flex items-start gap-3 border-t border-border pt-4">
-                <Clock3 className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                <p className="text-xs leading-5 text-muted-foreground">
-                  Os indicadores são atualizados a partir dos eventos de auditoria da organização.
+                <CardTitle className="text-base">Ocupação por clínica</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Preenchimento em relação à capacidade total
                 </p>
+              </div>
+            </CardHeader>
+            <CardContent className="px-3 pb-5 pt-5 sm:px-5">
+              <div className="h-[260px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={clinics.map((c: MutiraoClinicMetric) => ({
+                      name: c.name.length > 15 ? c.name.slice(0, 14) + "…" : c.name,
+                      ocupadas: c.occupied_slots,
+                      reservadas: c.reserved_slots,
+                      livres: c.free_slots,
+                    }))}
+                    margin={{ top: 8, right: 0, left: -20, bottom: 0 }}
+                  >
+                    <CartesianGrid
+                      vertical={false}
+                      stroke="hsl(var(--border))"
+                      strokeDasharray="3 3"
+                    />
+                    <XAxis
+                      dataKey="name"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                      tickMargin={10}
+                    />
+                    <YAxis
+                      allowDecimals={false}
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                      width={40}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        borderRadius: 8,
+                        borderColor: "hsl(var(--border))",
+                        backgroundColor: "hsl(var(--popover))",
+                        color: "hsl(var(--popover-foreground))",
+                        fontSize: 12,
+                      }}
+                    />
+                    <Bar dataKey="ocupadas" stackId="a" fill="hsl(152, 69%, 45%)" radius={[0, 0, 0, 0]} name="Ocupadas" />
+                    <Bar dataKey="reservadas" stackId="a" fill="hsl(45, 93%, 47%)" radius={[0, 0, 0, 0]} name="Reservadas" />
+                    <Bar dataKey="livres" stackId="a" fill="hsl(210, 40%, 85%)" radius={[4, 4, 0, 0]} name="Livres" />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </CardContent>
           </Card>
         </div>
 
+        {/* Clinic Performance Table */}
         <Card className="gap-0 py-0 shadow-none">
           <CardHeader className="flex flex-row items-center justify-between border-b px-5 py-5">
             <div className="flex flex-col gap-1">
-              <CardTitle className="text-base">Atividade recente</CardTitle>
-              <p className="text-sm text-muted-foreground">Últimos eventos registrados no sistema</p>
+              <CardTitle className="text-base">Desempenho por clínica</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Indicadores detalhados de cada unidade
+              </p>
             </div>
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/reports">
-                Ver relatório
-                <ArrowRight data-icon="inline-end" />
-              </Link>
-            </Button>
+            <ListChecks className="size-4 text-muted-foreground" aria-hidden="true" />
           </CardHeader>
           <CardContent className="px-0 pb-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="pl-5 text-xs uppercase tracking-wide text-muted-foreground">Evento</TableHead>
-                  <TableHead className="hidden text-xs uppercase tracking-wide text-muted-foreground sm:table-cell">Entidade</TableHead>
-                  <TableHead className="text-xs uppercase tracking-wide text-muted-foreground">Resultado</TableHead>
-                  <TableHead className="pr-5 text-right text-xs uppercase tracking-wide text-muted-foreground">Data</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentReports.slice(0, 5).map((report) => (
-                  <TableRow key={report.id}>
-                    <TableCell className="max-w-[240px] pl-5">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                          {report.outcome === "allowed" ? <ArrowUpRight className="size-4" /> : <ArrowDownRight className="size-4" />}
-                        </span>
-                        <span className="truncate text-sm font-medium capitalize text-foreground">{displayAction(report)}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden text-sm text-muted-foreground sm:table-cell">{report.entity}</TableCell>
-                    <TableCell>
-                      <Badge variant={report.outcome === "allowed" ? "success" : "danger"}>
-                        {report.outcome === "allowed" ? "Permitido" : "Negado"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="pr-5 text-right text-xs text-muted-foreground">{formatDate(report.created_at)}</TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="pl-5 text-xs uppercase">Clínica</TableHead>
+                    <TableHead className="text-center text-xs uppercase">Capacidade</TableHead>
+                    <TableHead className="text-center text-xs uppercase">Livres</TableHead>
+                    <TableHead className="text-center text-xs uppercase">Reserv.</TableHead>
+                    <TableHead className="text-center text-xs uppercase">Ocupadas</TableHead>
+                    <TableHead className="text-center text-xs uppercase">Confirm.</TableHead>
+                    <TableHead className="text-center text-xs uppercase">Ocupação</TableHead>
+                    <TableHead className="text-center text-xs uppercase">Cancel.</TableHead>
                   </TableRow>
-                ))}
-                {recentReports.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center text-sm text-muted-foreground">
-                      Nenhum evento registrado ainda.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-            {total > 5 && (
-              // Só o contador: os outros dois caminhos para /reports desta
-              // mesma tela ("Abrir todos" aqui e "Exportar dados" no rodapé,
-              // que não exportava nada) eram o mesmo link repetido três vezes.
-              <div className="border-t border-border px-5 py-3">
-                <span className="text-xs text-muted-foreground">
-                  Mostrando 5 de {numberFormatter.format(total)} eventos
-                </span>
-              </div>
-            )}
+                </TableHeader>
+                <TableBody>
+                  {clinics.map((clinic: MutiraoClinicMetric) => {
+                    const totalCancellations =
+                      clinic.operational_cancellations +
+                      clinic.withdrawal_cancellations +
+                      clinic.absence_cancellations;
+                    const clinicOccupation = clinic.capacity > 0
+                      ? ((clinic.occupied_slots / clinic.capacity) * 100)
+                      : 0;
+                    return (
+                      <TableRow key={clinic.id}>
+                        <TableCell className="pl-5 font-medium">{clinic.name}</TableCell>
+                        <TableCell className="text-center">{formatNumber(clinic.capacity)}</TableCell>
+                        <TableCell className="text-center text-emerald-600">
+                          {formatNumber(clinic.free_slots)}
+                        </TableCell>
+                        <TableCell className="text-center text-amber-600">
+                          {formatNumber(clinic.reserved_slots)}
+                        </TableCell>
+                        <TableCell className="text-center">{formatNumber(clinic.occupied_slots)}</TableCell>
+                        <TableCell className="text-center font-medium">
+                          {formatNumber(clinic.confirmations)}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge
+                            variant={
+                              clinicOccupation >= 80 ? "success" : clinicOccupation >= 50 ? "warning" : "danger"
+                            }
+                          >
+                            {clinicOccupation.toFixed(1)}%
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-center text-rose-600">
+                          {formatNumber(totalCancellations)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {clinics.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={8} className="h-24 animate-empty-state-enter text-center text-sm text-muted-foreground">
+                        Nenhuma clínica cadastrada. Configure a agenda para ver os indicadores.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {clinics.length > 0 && (
+                    <TableRow className="bg-muted/30 font-semibold">
+                      <TableCell className="pl-5">Consolidado</TableCell>
+                      <TableCell className="text-center">{formatNumber(total.capacity ?? 0)}</TableCell>
+                      <TableCell className="text-center text-emerald-600">
+                        {formatNumber(total.free_slots ?? 0)}
+                      </TableCell>
+                      <TableCell className="text-center text-amber-600">
+                        {formatNumber(total.reserved_slots ?? 0)}
+                      </TableCell>
+                      <TableCell className="text-center">{formatNumber(total.occupied_slots ?? 0)}</TableCell>
+                      <TableCell className="text-center">{formatNumber(total.confirmations ?? 0)}</TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant={kpis.occupation_rate >= 80 ? "success" : kpis.occupation_rate >= 50 ? "warning" : "danger"}>
+                          {formatPercent(kpis.occupation_rate)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center text-rose-600">
+                        {formatNumber(kpis.total_cancellations)}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       </div>

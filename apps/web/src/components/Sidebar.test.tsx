@@ -139,6 +139,17 @@ describe("Sidebar", () => {
     expect(screen.getByText("Equipe")).toBeInTheDocument();
     // A seção Plataforma NÃO existe no mundo crm (spec 2026-07-28).
     expect(screen.queryByText("Central de Operações")).not.toBeInTheDocument();
+    expect(screen.queryByText("Clínicas")).not.toBeInTheDocument();
+  });
+
+  it("SA no CRM: exibe Clínicas no menu operacional", () => {
+    localStorage.clear();
+    mockPathname = "/";
+    setAuth({ user: SA, isSa: true });
+
+    renderSidebar();
+
+    expect(screen.getByText("Clínicas")).toBeInTheDocument();
   });
 
   it("SA no console: renderiza a seção Plataforma", () => {

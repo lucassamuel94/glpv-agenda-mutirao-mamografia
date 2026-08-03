@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { AuthContext } from "@/hooks/use-auth";
 
 /* -----------------------------------------------------------------------------
  * DataTable — componente pai para tabelas de listagem
@@ -33,13 +34,16 @@ const ROW_SELECTED = "bg-primary/10";
  * Propagado via Context a partir de DataTable.Root para não repetir prop em
  * cada Cell/HeaderCell/SkeletonRow.
  * --------------------------------------------------------------------------- */
-type DataTableDensity = "comfortable" | "compact";
+// As três opções que o /setup oferece (ver request-access-validation.ts).
+// `spacious` faltava aqui: quem escolhesse "Espaçosa" caía no default.
+type DataTableDensity = "comfortable" | "compact" | "spacious";
 
 const DensityContext = React.createContext<DataTableDensity>("comfortable");
 
 const DENSITY_PADDING: Record<DataTableDensity, string> = {
   comfortable: "px-4 py-3",
   compact: "px-3 py-3",
+  spacious: "px-6 py-4",
 };
 
 type DataTableResponsive = "scroll" | "stack";
@@ -103,9 +107,11 @@ function DataTableCellGroup({
 /**
  * Container + Table com classes padrão.
  *
- * @param density Padding de células e headers. `comfortable` (px-6 py-4, default)
+ * @param density Padding de células e headers. `comfortable` (px-6 py-4)
  *   para listas comuns; `compact` (px-3 py-3) para tabelas com muitas colunas
- *   (>12) ou relatórios densos (ex.: SLA, KPIs agrupados).
+ *   (>12) ou relatórios densos (ex.: SLA, KPIs agrupados). Sem prop explícita,
+ *   vale a densidade da organização (escolhida no /setup) e, na falta dela,
+ *   `comfortable`.
  * @param variant `bordered` (default): wrapper com border/rounded/overflow e
  *   header com `bg-secondary` — para listas standalone. `bare`: sem moldura
  *   visual externa e header sem fundo — para mini-tabelas embutidas em Card,
@@ -113,7 +119,7 @@ function DataTableCellGroup({
  */
 function DataTableRoot({
   className,
-  density = "comfortable",
+  density,
   variant = "bordered",
   responsive = "scroll",
   children,
@@ -123,12 +129,17 @@ function DataTableRoot({
   variant?: DataTableVariant;
   responsive?: DataTableResponsive;
 }) {
+  // `useContext` direto (e não `useAuth`) porque o DataTable também roda fora
+  // do AuthProvider — Storybook e testes de componente — onde `useAuth` lança.
+  const auth = React.useContext(AuthContext);
+  const resolvedDensity =
+    density ?? auth?.orgBranding?.density ?? "comfortable";
   const table = (
     <Table className="min-w-full divide-y divide-border">{children}</Table>
   );
 
   return (
-    <DensityContext.Provider value={density}>
+    <DensityContext.Provider value={resolvedDensity}>
       <VariantContext.Provider value={variant}>
         <ResponsiveContext.Provider value={responsive}>
           {variant === "bare" ? (

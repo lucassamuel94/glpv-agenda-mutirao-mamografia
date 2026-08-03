@@ -15,6 +15,7 @@ export function ErrorMessage({
       title={title}
       description={errorMessage}
       variant="danger"
+      animate={false}
     />
   );
 }

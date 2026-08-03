@@ -39,10 +39,13 @@ import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "@/providers/ThemeProvider";
 import { ForgotPasswordDialog } from "@/modules/auth";
 import { Input, Checkbox } from "@/components/Form";
-import { APP_NAME, APP_VERSION, EMAIL_SUPPORT } from "@/environments";
+import { APP_VERSION, EMAIL_SUPPORT } from "@/environments";
 import { authApi } from "@/lib/api/auth";
 
 const REMEMBERED_EMAIL_KEY = "remembered_email";
+const LOGIN_BRAND_NAME = "Grupo Luta Pela Vida - Mutirão de Mamografia 2026";
+const LOGIN_BRAND_ORGANIZATION = "Grupo Luta Pela Vida";
+const LOGIN_BRAND_CAMPAIGN = "Mutirão de Mamografia 2026";
 const subscribeToHydration = () => () => {};
 
 const Login = () => {
@@ -210,11 +213,14 @@ const Login = () => {
           <div className="relative z-10 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <AppBrandMark
-                title={APP_NAME}
+                title={LOGIN_BRAND_NAME}
                 logoUrl={orgBranding?.logoUrl}
                 className="h-8 rounded-lg"
               />
-              <span className="text-sm font-semibold tracking-tight text-foreground">{APP_NAME}</span>
+              <span className="text-sm font-semibold leading-5 tracking-tight text-foreground">
+                <span className="block">{LOGIN_BRAND_ORGANIZATION}</span>
+                <span className="block">{LOGIN_BRAND_CAMPAIGN}</span>
+              </span>
             </div>
             <span className="flex items-center gap-1.5 rounded-full bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground">
               <span className="size-1.5 rounded-full bg-emerald-500" />v
@@ -282,12 +288,13 @@ const Login = () => {
           {/* No mobile o painel de marca some — a marca reaparece aqui */}
           <div className="mb-10 flex items-center gap-3 md:hidden">
             <AppBrandMark
-              title={APP_NAME}
+              title={LOGIN_BRAND_NAME}
               logoUrl={orgBranding?.logoUrl}
               className="h-9 rounded-lg"
             />
-            <span className="text-base font-semibold tracking-tight text-foreground">
-              {APP_NAME}
+            <span className="text-base font-semibold leading-5 tracking-tight text-foreground">
+              <span className="block">{LOGIN_BRAND_ORGANIZATION}</span>
+              <span className="block">{LOGIN_BRAND_CAMPAIGN}</span>
             </span>
           </div>
 

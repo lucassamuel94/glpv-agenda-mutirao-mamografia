@@ -28,7 +28,8 @@ describe('getDashboardStats — Platform tenant é invisível', () => {
       {} as never, // planRepository — não usado por getDashboardStats
       {} as never, // securityHashService — idem
       logger as never,
-      websocketService as never
+      websocketService as never,
+      {} as never // clinicRepository — não usado por getDashboardStats
     );
     return { service, organizationUserRepository };
   }

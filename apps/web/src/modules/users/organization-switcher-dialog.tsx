@@ -102,7 +102,7 @@ export function OrganizationSwitcherDialog({
         {loadingSaOrganizations ? (
           <p className="text-sm text-muted-foreground py-4">Carregando organizações...</p>
         ) : organizations.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4">
+          <p className="animate-empty-state-enter text-sm text-muted-foreground py-4">
             {isSaUser ? "Nenhuma organização cadastrada no sistema." : "Nenhuma organização disponível."}
           </p>
         ) : (

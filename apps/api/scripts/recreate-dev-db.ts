@@ -56,7 +56,7 @@ const config = {
   port: parseInt(process.env.DB_PORT || '5432'),
   user: process.env.DB_USERNAME || 'postgres',
   password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_DATABASE || 'ezcrm',
+  database: process.env.DB_DATABASE || 'glpv-agenda-mutirao-mamografia',
 };
 
 async function dropAndCreateDatabase(): Promise<void> {
