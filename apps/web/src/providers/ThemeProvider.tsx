@@ -279,13 +279,23 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       const svgNS = "http://www.w3.org/2000/svg";
       const maskId = `theme-reveal-mask-${Date.now()}`;
 
+      // `width`/`height` do <svg> não podem ser 0: sem tamanho real, o
+      // Chrome não resolve o sistema de coordenadas do conteúdo do <mask> e
+      // a máscara vira "esconde tudo" — cortina invisível, zero efeito
+      // visual (mesmo com cx/cy/r corretos). Testado ao vivo: com 0x0 nada
+      // aparece; com o tamanho real do viewport, a máscara funciona.
       const svg = document.createElementNS(svgNS, "svg");
-      svg.setAttribute("width", "0");
-      svg.setAttribute("height", "0");
-      svg.style.cssText = "position:fixed;pointer-events:none";
+      svg.setAttribute("width", String(window.innerWidth));
+      svg.setAttribute("height", String(window.innerHeight));
+      svg.style.cssText = "position:fixed;inset:0;pointer-events:none";
 
       const mask = document.createElementNS(svgNS, "mask");
       mask.setAttribute("id", maskId);
+      mask.setAttribute("maskUnits", "userSpaceOnUse");
+      mask.setAttribute("x", "0");
+      mask.setAttribute("y", "0");
+      mask.setAttribute("width", String(window.innerWidth));
+      mask.setAttribute("height", String(window.innerHeight));
 
       const rect = document.createElementNS(svgNS, "rect");
       rect.setAttribute("width", "100%");
@@ -328,13 +338,15 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       // `r` de um <circle> por CSS/WAAPI depende de suporte a geometry
       // properties que varia por browser — o loop manual funciona em
       // qualquer um que tenha SVG mask, sem depender disso.
-      const duration = 500;
+      const duration = 550;
       const start = performance.now();
-      const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+      // Smoothstep: acelera e desacelera suave nas duas pontas (em vez de
+      // sair rápido do zero como o easeOutCubic anterior) — mais macio.
+      const smoothstep = (t: number) => t * t * (3 - 2 * t);
 
       const step = (now: number) => {
         const t = Math.min(1, (now - start) / duration);
-        hole.setAttribute("r", String(maxRadius * easeOutCubic(t)));
+        hole.setAttribute("r", String(maxRadius * smoothstep(t)));
         if (t < 1) {
           requestAnimationFrame(step);
         } else {

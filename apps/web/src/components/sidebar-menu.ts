@@ -12,7 +12,6 @@
 import {
   BarChart3,
   CalendarDays,
-  ClipboardList,
   FileText,
   Hospital,
   LayoutDashboard,
@@ -88,12 +87,6 @@ const CRM_GROUPS: MenuSection[] = [
     items: [
       { icon: CalendarDays, label: "Agenda", path: "/agenda", resource: "agenda" as Resource },
       { icon: Users, label: "Pacientes", path: "/pacientes", resource: "pacientes" as Resource },
-      {
-        icon: ClipboardList,
-        label: "Lista de espera",
-        path: "/lista-espera",
-        resource: "lista-espera" as Resource,
-      },
       {
         icon: Hospital,
         label: "Clínicas",

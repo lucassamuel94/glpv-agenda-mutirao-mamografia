@@ -19,6 +19,7 @@ interface InputSearchProps {
   showSearchButton?: boolean;
   showClearButton?: boolean;
   searchButtonText?: string;
+  containerClassName?: string;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onSearch?: (value: string) => void;
 }
@@ -43,6 +44,7 @@ export default function InputSearch({
   showSearchButton = false,
   showClearButton = true,
   searchButtonText = "Buscar",
+  containerClassName,
 }: InputSearchProps) {
   const [searchValue, setSearchValue] = useState(value);
 
@@ -82,7 +84,7 @@ export default function InputSearch({
 
   return (
     <>
-      <div className="relative flex-1 min-w-[200px] max-w-md">
+      <div className={cn("relative min-w-[200px] max-w-md flex-1", containerClassName)}>
         {mask ? (
           <MaskedInput type={mask} {...sharedProps} />
         ) : (
@@ -102,7 +104,7 @@ export default function InputSearch({
             <X size={14} />
           </Button>
         )}
-        {!value && showSearchButton && variant === "input" && (
+        {showSearchButton && variant === "input" && (
           <Button
             type="button"
             onClick={() => onSearch?.(searchValue || "")}

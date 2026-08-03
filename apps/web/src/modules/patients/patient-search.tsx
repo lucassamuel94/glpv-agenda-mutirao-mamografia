@@ -13,12 +13,14 @@ interface PatientSearchProps {
 
 /** RN-58: busca é POST com o termo no body — nunca query param. */
 export function PatientSearch({ onSelect, showInitialEmptyState = false }: PatientSearchProps) {
+  const [searchTerm, setSearchTerm] = useState("");
   const [results, setResults] = useState<Patient[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searched, setSearched] = useState(false);
 
   const handleSearch = async (term: string) => {
     if (!term || term.trim().length < 2) {
+      setSearchTerm("");
       setResults([]);
       setSearched(false);
       return;
@@ -42,7 +44,10 @@ export function PatientSearch({ onSelect, showInitialEmptyState = false }: Patie
         name="patient-search"
         variant="input"
         placeholder="Nome ou telefone (mín. 2 caracteres)"
+        value={searchTerm}
+        onChange={(event) => setSearchTerm(event.target.value)}
         showSearchButton
+        containerClassName="w-full max-w-none"
         onSearch={handleSearch}
       />
       {showInitialEmptyState && !isSearching && !searched && (
