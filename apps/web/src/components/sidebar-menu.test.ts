@@ -69,10 +69,9 @@ describe("buildMenuGroups", () => {
     expect(buildBottomItems("console")).toEqual([]);
   });
 
-  it("crm expõe a seção Mutirão com agenda, pacientes e clínicas", () => {
+  it("crm expõe a seção Mutirão com pacientes e clínicas", () => {
     const mutirao = buildMenuGroups("crm").find((g) => g.title === "Mutirão")!;
     expect(mutirao.items.map((i) => [i.path, i.resource])).toEqual([
-      ["/agenda", "agenda"],
       ["/pacientes", "pacientes"],
       ["/clinics", "superadmin"],
     ]);

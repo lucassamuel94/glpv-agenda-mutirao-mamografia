@@ -24,8 +24,9 @@ import { Separator } from "./ui/separator";
 import { SkeletonBar } from "@/modules/common/skeleton";
 import { useTheme } from "@/providers/ThemeProvider";
 import { cn } from "@/lib/utils";
-import { Tooltip } from "@/components";
+import { Tooltip, Can } from "@/components";
 import { useNewBooking } from "@/contexts/new-booking-context";
+import { PERMISSIONS } from "@/lib/permissions";
 
 /**
  * Botão de atalho para abrir o wizard de agendamento (modal global).
@@ -34,22 +35,29 @@ import { useNewBooking } from "@/contexts/new-booking-context";
  * O hook `useNewBooking` lança se o provider não estiver acima na árvore.
  * Como o Layout vive dentro do `ProtectedLayout` que monta o provider, isso
  * nunca acontece em produção. O botão é seguro aqui.
+ *
+ * Gated por `PERMISSIONS.AGENDA`: com a página `/agenda` removida, este botão
+ * é o único ponto de entrada do wizard — sem o `<Can>`, MANAGER/COORDINATOR
+ * (que não tinham a permissão `agenda`) passariam a conseguir agendar mesmo
+ * assim, só porque o botão é global.
  */
 function NewBookingButton() {
   const { open } = useNewBooking();
 
   return (
-    <Tooltip content="Novo agendamento (N)">
-      <Button
-        onClick={() => open()}
-        variant="primary"
-        size="sm"
-        className="gap-1.5 mr-1"
-      >
-        <Plus size={14} />
-        <span className="hidden sm:inline">Agendar</span>
-      </Button>
-    </Tooltip>
+    <Can perm={PERMISSIONS.AGENDA}>
+      <Tooltip content="Novo agendamento (N)">
+        <Button
+          onClick={() => open()}
+          variant="primary"
+          size="sm"
+          className="gap-1.5 mr-1"
+        >
+          <Plus size={14} />
+          <span className="hidden sm:inline">Agendar</span>
+        </Button>
+      </Tooltip>
+    </Can>
   );
 }
 

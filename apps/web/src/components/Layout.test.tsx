@@ -26,6 +26,11 @@ vi.mock("@/services/helpData", () => ({
 vi.mock("@/providers/ThemeProvider", () => ({
   useTheme: () => ({ theme: "light", setTheme: vi.fn(), toggleTheme: vi.fn() }),
 }));
+// `NewBookingButton` (system tray) usa `<Can>` -> `useAuth()` pra gate de
+// permissão; sem provider real nos testes de Layout, precisa do stub.
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => ({ hasPermission: () => true }),
+}));
 
 describe("Layout", () => {
   it("abre o drawer, expõe seu estado e devolve o foco ao acionador", () => {

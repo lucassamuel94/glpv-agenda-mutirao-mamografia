@@ -33,13 +33,13 @@ import { PeriodFilter, SuggestionsPanel } from "@/modules/agenda/suggestions-pan
 import { PatientSearch } from "@/modules/patients/patient-search";
 import { PatientCreateForm } from "@/modules/patients/patient-create-form";
 import { useNewBooking } from "@/contexts/new-booking-context";
+import { CAMPAIGN_START, CAMPAIGN_END, monthOf, monthBounds } from "@/modules/agenda/campaign";
+import { useAuth } from "@/hooks/use-auth";
+import { PERMISSIONS } from "@/lib/permissions";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import type { Patient } from "@/lib/api/patients";
 import type { Appointment, Slot, SlotPeriod, SlotSuggestion } from "@/lib/api/scheduling";
-
-const CAMPAIGN_START = "2026-09-08";
-const CAMPAIGN_END = "2026-10-30";
 
 type Step = "slot" | "patient" | "confirm" | "done";
 
@@ -86,16 +86,6 @@ const bookingSchema = z.object({
     message: "Pergunte à paciente e registre a resposta",
   }),
 });
-
-function monthOf(day: string): string {
-  return day.slice(0, 7);
-}
-
-function monthBounds(monthCursor: string): { from: string; to: string } {
-  const [year, month] = monthCursor.split("-").map(Number);
-  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  return { from: `${monthCursor}-01`, to: `${monthCursor}-${lastDay}` };
-}
 
 /** Horário de parede (RN-60): fatiado como texto, nunca convertido por `Date`. */
 function describeSlot(slotAt: string, clinicName?: string): string {
@@ -191,6 +181,7 @@ function BirthDateAgeHint({ examDate }: { examDate: string }) {
 
 export function NewBookingModal() {
   const { isOpen, open, close, preselectedPatient } = useNewBooking();
+  const { hasPermission } = useAuth();
 
   // ─── Wizard state ───────────────────────────────────────────────────
   const [step, setStep] = useState<Step>("slot");
@@ -398,6 +389,7 @@ export function NewBookingModal() {
    */
   useEffect(() => {
     if (isOpen) return;
+    if (!hasPermission([PERMISSIONS.AGENDA])) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() !== "n") return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -412,7 +404,7 @@ export function NewBookingModal() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [isOpen, open]);
+  }, [isOpen, open, hasPermission]);
 
   /** Escape fecha (passando pelo `handleClose`, que devolve a vaga segurada). */
   useEffect(() => {
